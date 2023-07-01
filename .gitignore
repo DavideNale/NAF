@@ -1,7 +1,7 @@
 # Folders
 dataset/
 raw_data/
-utils/
+mesh_rir/
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
