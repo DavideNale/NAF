@@ -15,13 +15,10 @@ random.seed(0)
 np.random.seed(0)
 torch.manual_seed(0)
 
-from sound_loader import sound_samples
+from numpy.lib.format import header_data_from_array_1_0
 
-dataset = sound_samples()
-src, mic, ir = dataset[0]
-print(src)
-print(mic)
-print(ir)
+filename = 'mesh_rir/S32-M441_npy/spectrograms.npy'
 
-_, _, IRs = irutil.loadIR(Path('mesh_rir/S32-M441_npy/'))
-print(len(IRs))
+file = np.load(filename)
+
+print(file[0,0,0,0].dtype)

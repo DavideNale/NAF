@@ -1,9 +1,14 @@
+import numpy as np
 import torch
 import torch.optim as optim
 from torch.utils.data import DataLoader
 from network import NAF
 from sound_loader import sound_samples
+from modules import embedding_module_log
 torch.manual_seed(42)
+
+# Device selection
+device = 'cuda' if torch.cuda.is_available() else 'cpu'
 
 # Network parameters
 feature_dim = 64
@@ -14,6 +19,7 @@ output_dim = 100
 learning_rate = 0.001
 num_epochs = 200
 batch_size = 20
+ft_num = 2000
 
 # Feature grid definition
 
@@ -24,7 +30,14 @@ batch_size = 20
 # Dataset
 print('Loading dataset. It might take a while ...')
 dataset = sound_samples()
-dataloader = DataLoader(dataset, batch_size=batch_size, shuffle=True)
+dataloader = DataLoader(dataset, batch_size=batch_size, shuffle=True, num_workers=4)
+print(dataset.min_xy)
+print(dataset.max_xy)
+xyz_embedder = embedding_module_log().to(device)
+freq_embedder = embedding_module_log().to(device)
+time_embedder = embedding_module_log().to(device)
+
+net = NAF().to(device)
 
 print('Training started: ')
 
@@ -33,11 +46,53 @@ print('Training started: ')
 # join with position in a single tensor
 # trainig and optimize over it
 
+for batch_index, batch in enumerate(dataloader):
+    print("batch: ",batch_index)
+    srcs, mics, spectrograms = batch
+
+    for i in range(srcs.shape[0]):
+        # exctract single data
+        src = srcs[i,:]
+        mic = mics[i,:]
+        
+        # pick ft_num (f,t) from each spectrogram 
+        for i in range(ft_num):
+            f_max, t_max = spectrogram.shape
+            f = torch.randint(0,f_max, size=(1,))
+            t = torch.randint(0, t_max, size=(1,))
+            
+                
+    # for each row of the 20
+    # extract positions
+    # extract spectrogram
+    # selecgt 2000 (f,t)
+    # compute FF
+    # compect in single array
+    # compact in tensor
+
+    # for each line of the tensor train the network
+    
+
+exit(0)
+
+# an epoch is a comlpete visit of the dataset
+for epoch in range(num_epochs):
+    for batch in dataloader:
+
+        # do things with the data
+        with torch.no_grad():
+            pos_embed = ''
+            freq_embed = ''
+            time_embed = ''
+
+        total_in = torch.cat((pos_embed, freq_embed, time_embed), dim=2)
+
+        # and continue the optimization
+    
 
 """
-for i_batch, sample in enumerate(dataloader):
+for batch, samples in enumerate(dataloader):
     print(f'=== BATCH {i_batch} ============')
-    print('yas')
     src, mic, spectrogram = sample
     # process ir
     # infer from net
@@ -45,6 +100,7 @@ for i_batch, sample in enumerate(dataloader):
     # optimize net
 
 # Training loop
+
 for epoch in range(num_epochs):
     for coordinates, features, targets in dataloader:
         # Forward pass
