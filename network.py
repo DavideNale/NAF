@@ -1,13 +1,15 @@
 import torch
 import torch.nn as nn
+import numpy as np
 
 class NAF(nn.Module):
-    def __init__(self,input_dim, hidden_dim, output_dim, grid_density, feature_dim, min_xy, max_xy):
+    def __init__(self, input_dim, hidden_dim = 512, output_dim = 1, grid_density = 0.25,
+        feature_dim = 64, min_xy = None, max_xy = None):
         super(NAF, self).__init__()
 
         # Create grid
-        grid_coords_x = np.arrange(min_xy[0], max_xy[0], grid_density)
-        grid_coords_y = np.arrange(min_xy[1], max_xy[1], grid_density)
+        grid_coords_x = np.arange(min_xy[0], max_xy[0], grid_density)
+        grid_coords_y = np.arange(min_xy[1], max_xy[1], grid_density)
         
 
         
