@@ -15,10 +15,13 @@ random.seed(0)
 np.random.seed(0)
 torch.manual_seed(0)
 
-from numpy.lib.format import header_data_from_array_1_0
+from modules import embedding_module_log
 
-filename = 'mesh_rir/S32-M441_npy/spectrograms.npy'
+test = torch.from_numpy(np.linspace(0.0, 0.4, 2).astype(np.single)).unsqueeze(0)
+print(test)
+print(test.shape)
+emb = embedding_module_log(test).expand(-1, 4, -1)
+res = emb(test)
 
-file = np.load(filename)
-
-print(file[0,0,0,0].dtype)
+print(res)
+print(res.shape)
