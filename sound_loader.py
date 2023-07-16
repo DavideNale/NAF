@@ -7,11 +7,13 @@ np.random.seed(0)
 torch.manual_seed(0)
 
 class sound_samples(torch.utils.data.Dataset):
-    def __init__(self):
+    def __init__(self, num_samples):
+        # Args
+        self.num_samples = num_samples
+        
         # Load dataset
         path = Path('mesh_rir/S32-M441_npy/')
         self.spectrograms = np.load(path.joinpath('spectrograms.npy'), mmap_mode='r+')
-        
         self.posMic, self.posSrc, _ = irutil.loadIR(path)
 
         # Calculate min_xy
@@ -26,7 +28,6 @@ class sound_samples(torch.utils.data.Dataset):
 
         # Join in a single list of (src, mic, IR) objects
         self.indices = []
-
         for s in range(len(self.posSrc)):
             for m in range(len(self.posMic)):
                 self.indices.append([s,m])
@@ -35,8 +36,23 @@ class sound_samples(torch.utils.data.Dataset):
         return  len(self.indices)
 
     def __getitem__(self, idx):
+        # Retrieve source and microphone position
         s, m = self.indices[idx]
         src = self.posSrc[s]
         mic = self.posMic[m]
+
+        # Create array for output
+        srcs = np.full((self.num_samples,3), src)
+        mics = np.full((self.num_samples,3), mic)
+
+        # Sample <num_samples> frequencies and times from the spectrogram
         spectrogram = self.spectrograms[s,m]
-        return src, mic, spectrogram
+        sound_size = spectrogram.shape
+        times = np.random.randint(0, sound_size[1], self.num_samples)
+        freqs = np.random.randint(0, sound_size[0], self.num_samples)
+
+        # Ground truths
+        gts = spectrogram[freqs, times]
+
+        return gts, srcs, mics, freqs, times
+        
