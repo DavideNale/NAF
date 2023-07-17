@@ -16,9 +16,11 @@ class projection(nn.Module):
 class sequential(nn.Module):
     def __init__(self, input_dim, output_dim):
         super(sequential, self).__init__()
+        self.output_dim = output_dim
         self.block = nn.Sequential(nn.LeakyReLU(negative_slope=0.1), projection(input_dim, output_dim))
     def forward(self, x):
-        return self.block(x)
+        output = self.block(x)
+        return output[...,:self.output_dim]
 
 # Neural Acoustic Field Network
 class NAF(nn.Module):
@@ -48,34 +50,34 @@ class NAF(nn.Module):
 
 
         # Initalization of custom moduels
-        self.proj = projection(input_dim + 2*feature_dim, hidden_dim)
-        self.residual = nn.Sequential(projection(input_dim + 2*feature_dim, hidden_dim), nn.LeakyReLU(negative_slope=0.1))
+        self.proj = projection(input_dim, hidden_dim)
+        self.residual = nn.Sequential(projection(input_dim, hidden_dim), nn.LeakyReLU(negative_slope=0.1), projection(hidden_dim, output_dim))
         
         # Define layers
         self.layers = torch.nn.ModuleList()
         for i in range(num_layers - 2):
-            self.layers.append(sequential(hidden_dim, output_dim))
+            self.layers.append(sequential(hidden_dim, hidden_dim))
                 
         self.output = nn.Linear(hidden_dim, output_dim)
 
+        self.blocks = num_layers
     def forward(self, input, srcs, mics):
         srcs_xy = srcs[..., :2]
         mics_xy = mics[..., :2]
 
-        
         features_srcs = torch.tensor(find_features(srcs_xy, self.grid_coords_xy, self.grid_0)).to('cuda')
         features_mics = torch.tensor(find_features(mics_xy, self.grid_coords_xy, self.grid_0)).to('cuda')
-        print(features_srcs.shape, features_mics.shape, input.shape)
 
-        total_input = torch.cat((features_mics, features_mics, input), dim=2)
-        print(total_input.shape)
+        total_input = torch.cat((features_mics, features_mics, input), dim=2).float()
 
-        out = self.proj(input)
+        out = self.proj(total_input)
+
         # Pass throught all layers of the network
         for k in range(len(self.layers)):
             out = self.layers[k](out)
             if k == (self.blocks // 2 - 1):
-                out = out + self.residual(total_input).unsqueeze(2).repeat(1,1,2,1)
+                out = out + self.residual(total_input)
 
+        out = self.output(out)
         return out
         
