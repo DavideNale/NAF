@@ -41,16 +41,15 @@ criterion = torch.nn.MSELoss()
 orig_container = []
 grid_container = []
 
-#for par_name, par_val in net.named_parameters():
-#    print(par_name)
-    #if "grid" in par_name:
-        #grid_container.append(par_val)
-    #else:
-        #orig_container.append(par_val)
+for par_name, par_val in net.named_parameters():
+    if "grid" in par_name:
+        grid_container.append(par_val)
+    else:
+        orig_container.append(par_val)
 
 optimizer = torch.optim.AdamW([
     {'params': grid_container, 'lr': learning_rate, 'weight_decay': 1e-2},
-    {'params': grid_container, 'lr': learning_rate, 'weight_decay': 0}],
+    {'params': orig_container, 'lr': learning_rate, 'weight_decay': 0}],
     lr = learning_rate,
     weight_decay = 0.0
 )
@@ -61,7 +60,7 @@ for epoch in range(num_epochs):
         print('Epoch: ', epoch, ' Batch: ', batch_index)
 
         # Unpack arrays and move to GPU
-        gts = batch[0].to(device)
+        gts = batch[0].float().to(device)
         srcs = batch[1].to(device)
         mics = batch[2].to(device)
         freqs = batch[3].to(device)
@@ -79,9 +78,9 @@ for epoch in range(num_epochs):
         optimizer.zero_grad(set_to_none=False)
         
         output = net(input.to(torch.float32), srcs, mics)
-        exit(1)
-        #loss = criterion(output, gts)
-        #loss.backward()
-        #optimizer.step()
+        output = np.squeeze(output, axis=-1)
+        loss = criterion(output, gts)
+        loss.backward()
+        optimizer.step()
 
-    #print(f"Epoch : {epoch}, loss : {loss}") 
+    print(f"Epoch : {epoch}, loss : {loss}") 
