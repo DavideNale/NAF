@@ -19,16 +19,26 @@ from modules import embedding_module_log
 from sound_loader import sound_samples
 
 device = 'cuda' if torch.cuda.is_available() else 'cpu'
-print(device)
+
+min = torch.min(torch.tensor([[1,1.1],[2,3]]))
+print(min)
+
+embedding = embedding_module_log(num_freqs=10)
+a = torch.Tensor([[1,0,]])
+print(a)
+print(a.shape)
+e = embedding(a)
+print(e)
+print(e.shape)
 
 sounds = sound_samples(num_samples=20)
 print(sounds[1])
 
-test = torch.from_numpy(np.linspace(0.0, 0.4, 2).astype(np.single)).unsqueeze(0)
-print(test)
-
-emb = embedding_module_log(num_freqs=10)
-res = emb(test)
-
-print(res)
-print(res.shape)
+#test = torch.from_numpy(np.linspace(0.0, 0.4, 2).astype(np.single)).unsqueeze(0)
+#print(test)
+#
+#emb = embedding_module_log(num_freqs=10)
+#res = emb(test)
+#
+#print(res)
+#print(res.shape)

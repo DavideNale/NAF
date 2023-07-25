@@ -24,22 +24,16 @@ class embedding_module_log(nn.Module):
                 out_list.append(func(x_input*freq))
         return torch.cat(out_list, dim=self.ch_dim)
 
-def euclidean_distance(x1, y1, x2, y2):
-    dx = x2 - x1
-    dy = y2 - y1
-    distance = math.sqrt(dx ** 2 + dy ** 2)
-    return distance
+# Pairwise euclidean distance
+def euclidean_distance(x1:torch.Tensor, x2:torch.Tensor) -> torch.Tensor:
+    x1_norm = x1.pow(2).sum(dim=-1, keepdim=True)
+    x2_norm = x2.pow(2).sum(dim=-1, keepdim=True)
+    return torch.addmm(x2_norm.transpose(-2,1), x1, x2.transpose(-2,-1), alpha=-2).add_(x1_norm)
 
-def find_features(positions, coordinates, features):
-    unique = positions[:,0,:].cpu()
-    coordinates = coordinates.cpu()
-    features = features.cpu().detach().numpy()
-    output = np.zeros((20, 1, features.shape[1]))
-    for i in range(unique.shape[0]):
-        xy = unique[i,:]
-        coords = coordinates
-        norm = np.linalg.norm(coords-xy,axis=1)
-        index = np.argmin(norm)
-        output[i,:,:] = features[index,:]
-    return np.repeat(output, 2000, axis=1)
+#@torch.jit.script
+def find_features(input_pos:torch.Tensor, grid_pos:torch.Tensor, grid:torch.Tensor) -> torch.Tensor:
+    distance = euclidean_distance(input_pos.squeeze(1), grid_pos)
 
+    min_indices = torch.argmin(distance, dim=-1)
+    features = grid[min_indices,:]
+    return features
