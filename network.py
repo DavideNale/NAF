@@ -39,17 +39,8 @@ class NAF(nn.Module):
         self.register_buffer("grid_coords_xy", torch.from_numpy(xy_train).float(), persistent=True)
         self.xy_offset = nn.Parameter(torch.zeros_like(self.grid_coords_xy), requires_grad=True)
         self.grid_0 = nn.Parameter(torch.randn(len(grid_coords_x), feature_dim, device="cpu").float() / np.sqrt(float(feature_dim)), requires_grad=True)
-        #self.bandwidth_min = bandwidth_min
-        #self.bandwidth_max = bandwidth_max
-        #self.float_amt = float_amt
-        #self.bandwidths = nn.Parameter(torch.zeros(len(grid_coors_x))+grid_bandwidth, requires_grad=True)
-        #self.register_buffer("grid_coors_xy",torch.from_numpy(xy_train).float(), persistent=True)
-        #self.xy_offset = nn.Parameter(torch.zeros_like(self.grid_coors_xy), requires_grad=True)
-        #self.grid_0 = nn.Parameter(torch.randn(len(grid_coors_x),grid_ch, device="cpu").float() / np.sqrt(float(grid_ch)), requires_grad=True)
 
-
-
-        # Initalization of custom moduels
+        # Initalization of custom modules
         self.proj = projection(input_dim, hidden_dim)
         self.residual = nn.Sequential(projection(input_dim, hidden_dim), nn.LeakyReLU(negative_slope=0.1), projection(hidden_dim, output_dim))
         
@@ -62,13 +53,14 @@ class NAF(nn.Module):
 
         self.blocks = num_layers
     def forward(self, input, srcs, mics):
-        srcs_xy = srcs[..., :2]
-        mics_xy = mics[..., :2]
+        SAMPLES = input.shape[1]
+        srcs = srcs[..., :2]
+        mics = mics[..., :2]
 
-        features_srcs = torch.tensor(find_features(srcs_xy, self.grid_coords_xy, self.grid_0)).to('cuda')
-        features_mics = torch.tensor(find_features(mics_xy, self.grid_coords_xy, self.grid_0)).to('cuda')
+        features_srcs = find_features(srcs, self.grid_coords_xy, self.grid_0).unsqueeze(1).expand(-1, SAMPLES, -1)
+        features_mics = find_features(mics, self.grid_coords_xy, self.grid_0).unsqueeze(1).expand(-1, SAMPLES, -1)
 
-        total_input = torch.cat((features_mics, features_mics, input), dim=2).float()
+        total_input = torch.cat((features_srcs, features_mics, input), dim=2)
 
         out = self.proj(total_input)
 
