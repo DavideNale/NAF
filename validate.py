@@ -1,6 +1,5 @@
 import torch
 import numpy as np
-import seaborn as sns
 import matplotlib
 matplotlib.use('TkAgg')  # Use the TkAgg backend
 import matplotlib.pyplot as plt
@@ -49,9 +48,6 @@ state_dict = torch.load(args.config_file)
 net.load_state_dict(state_dict)
 net.eval()
 
-test = np.ones((1025,65,248))
-
-i = 0   
 
 # Run in inference
 with torch.no_grad():
@@ -59,32 +55,25 @@ with torch.no_grad():
     src_embed = xyz_embedder(src_norm).unsqueeze(0).unsqueeze(1).repeat(1025, 65, 1)
     mic_embed = xyz_embedder(mic_norm).unsqueeze(0).unsqueeze(1).repeat(1025, 65, 1)
     
-    for f in range(1025):
-        for t in range(65):
-            test[f,t]=i
-            i=i+1
-            
-#    print(src_embed)
-#    print(mic_embed)
-#    f = torch.arange(1025).unsqueeze(1).to(device)/1024
-#    print(f)
-#    t = torch.arange(65).unsqueeze(1).to(device)/64
-#    print(t)
-#
-#    freq_embed = freq_embedder(f).unsqueeze(1).repeat(1,65,1)
-#    print(freq_embed,freq_embed.shape)
-#    time_embed = time_embedder(t).unsqueeze(0).repeat(1025,1,1)
-#    print(time_embed, time_embed.shape)
-#
-#    input = torch.concatenate((src_embed, mic_embed, freq_embed, time_embed), dim=2)
-#    input = input.to(device).float()
-#
-#    output = net(input, src_norm.unsqueeze(0).unsqueeze(1).repeat(1025,1,3), mic_norm.unsqueeze(0).unsqueeze(1).repeat(1025,1,3))
-#    output = output.cpu()
-#    output = (output * dataset.std_deviation)+dataset.mean_value
+    f = torch.arange(1025).unsqueeze(1).to(device)/1024
+    print(f)
+    t = torch.arange(65).unsqueeze(1).to(device)/64
+    print(t)
 
+    freq_embed = freq_embedder(f).unsqueeze(1).repeat(1,65,1)
+    print(freq_embed,freq_embed.shape)
+    time_embed = time_embedder(t).unsqueeze(0).repeat(1025,1,1)
+    print(time_embed, time_embed.shape)
+
+    input = torch.concatenate((src_embed, mic_embed, freq_embed, time_embed), dim=2)
+    input = input.to(device).float()
+
+    output = net(input, src_norm.unsqueeze(0).unsqueeze(1).repeat(1025,1,3), mic_norm.unsqueeze(0).unsqueeze(1).repeat(1025,1,3))
+    output = output.cpu()
+    output = (output * dataset.std_deviation)+dataset.mean_value
+    
 # Generate and save image to temp directory
-plt.imshow(test, cmap='hot', aspect='auto')
+plt.imshow(output, cmap='hot', aspect='auto')
 plt.colorbar()
 plt.xlabel('Time')
 plt.ylabel('Frequency')

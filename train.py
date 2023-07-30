@@ -13,10 +13,10 @@ from modules import embedding_module_log
 device = 'cuda' if torch.cuda.is_available() else 'cpu'
 
 # Trainig parameters
-learning_rate = 0.0005
-num_epochs = 100
+learning_rate = 0.01
+num_epochs = 200
 batch_size = 20
-ft_num = 2000
+ft_num = 200
 
 # Dataset
 print('Loading dataset. It might take a while ...')
@@ -76,15 +76,16 @@ for epoch in range(num_epochs):
 
         # Concatenate and feed to network
         input = torch.cat((src_embed, mic_embed, freq_embed, time_embed), dim=2)
-        optimizer.zero_grad()
 
         input = input.to(device)
         output = net(input, srcs, mics)
         output = torch.squeeze(output, dim=-1)
         loss = criterion(output, gts)
 
+        optimizer.zero_grad()
         loss.backward()
         running_loss += loss.item()
+        optimizer.step()
         
     # Average loss for the epoch
     average_loss = running_loss / len(dataloader)
