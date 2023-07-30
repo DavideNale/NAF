@@ -10,10 +10,13 @@ class sound_samples(torch.utils.data.Dataset):
         
         # Load dataset and save spectrogram shape
         path = Path('mesh_rir/S32-M441_npy/')
-        self.spectrograms = np.load(path.joinpath('spectrograms.npy'), mmap_mode='r+')        
-
+        self.spectrograms = np.load(path.joinpath('spectrograms.npy'), mmap_mode='r+')
         self.posMic, self.posSrc, _ = irutil.loadIR(path)
 
+        # Calculate mean and standard deviation of the dataset
+        self.mean_value = np.mean(self.spectrograms)
+        self.std_deviation = np.std(self.spectrograms)
+        
         # Calculate min_xy
         min_x = min(np.min(self.posMic[0]), np.min(self.posSrc[0]))
         min_y = min(np.min(self.posMic[1]), np.min(self.posSrc[1]))
@@ -44,10 +47,6 @@ class sound_samples(torch.utils.data.Dataset):
         # Normalization
         src_norm = ((src - self.min_pos)/(self.max_pos-self.min_pos) - 0.5) * 2.0
         mic_norm = ((mic - self.min_pos)/(self.max_pos-self.min_pos) - 0.5) * 2.0
-
-        # Create array for output
-        #srcs = np.full((self.num_samples,3), src_norm) 
-        #mics = np.full((self.num_samples,3), mic_norm)
 
         # Sample <num_samples> frequencies and times from the spectrogram
         spectrogram = self.spectrograms[s,m]

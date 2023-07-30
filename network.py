@@ -22,6 +22,29 @@ class sequential(nn.Module):
         output = self.block(x)
         return output[...,:self.output_dim]
 
+class intermediate(nn.Module):
+    def __init__(self, input_dim, output_dim):
+        super(intermediate, self).__init__()
+        self.layer = nn.Sequential(
+            nn.Linear(input_dim, output_dim),
+            nn.LeakyReLU(negative_slope=0.1)
+        )
+    def forward(self,x):
+        return self.layer(x)
+
+class skip(nn.Module):
+    def __init__(self, input_dim, output_dim):
+        super(skip, self).__init__()
+        self.layer = nn.Sequential(
+            nn.Linear(input_dim, output_dim),
+            nn.LeakyReLU(negative_slope=0.1),
+            nn.Linear(output_dim, output_dim)
+        )
+    def forward(self, x):
+        return self.layer(x)
+    
+
+
 # Neural Acoustic Field Network
 class NAF(nn.Module):
     def __init__(self, input_dim, hidden_dim=512, output_dim=1, num_layers=8,
@@ -40,14 +63,20 @@ class NAF(nn.Module):
         self.xy_offset = nn.Parameter(torch.zeros_like(self.grid_coords_xy), requires_grad=True)
         self.grid_0 = nn.Parameter(torch.randn(len(grid_coords_x), feature_dim, device="cpu").float() / np.sqrt(float(feature_dim)), requires_grad=True)
 
-        # Initalization of custom modules
-        self.proj = projection(input_dim, hidden_dim)
-        self.residual = nn.Sequential(projection(input_dim, hidden_dim), nn.LeakyReLU(negative_slope=0.1), projection(hidden_dim, output_dim))
+        # Initalization of layers via custom moduels
+        self.first = intermediate(input_dim, hidden_dim)
+        self.intermediate = intermediate(hidden_dim, hidden_dim)
+        self.skip = skip(input_dim, hidden_dim)
+        self.output = nn.Linear(hidden_dim, output_dim)
+
+        
+        #self.proj = projection(input_dim, hidden_dim)
+        #self.residual = nn.Sequential(projection(input_dim, hidden_dim), nn.LeakyReLU(negative_slope=0.1), projection(hidden_dim, output_dim))
         
         # Define layers
-        self.layers = torch.nn.ModuleList()
-        for i in range(num_layers - 2):
-            self.layers.append(sequential(hidden_dim, hidden_dim))
+        #self.layers = torch.nn.ModuleList()
+        #for i in range(num_layers - 2):
+        #    self.layers.append(sequential(hidden_dim, hidden_dim))
                 
         self.output = nn.Linear(hidden_dim, output_dim)
 
@@ -62,14 +91,18 @@ class NAF(nn.Module):
 
         total_input = torch.cat((features_srcs, features_mics, input), dim=2)
 
-        out = self.proj(total_input)
+        # Passing throught the layers
+        out = self.first(total_input)
+        out = self.intermediate(out)
+        out = self.intermediate(out)
+        out = self.intermediate(out)
 
-        # Pass throught all layers of the network
-        for k in range(len(self.layers)):
-            out = self.layers[k](out)
-            if k == (self.blocks // 2 - 1):
-                out = out + self.residual(total_input)
-
+        skip = self.skip(total_input)
+        
+        out = self.intermediate(out + skip)
+        out = self.intermediate(out)
+        out = self.intermediate(out)
         out = self.output(out)
+
         return out
         
