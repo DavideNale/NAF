@@ -7,6 +7,7 @@ import subprocess
 import argparse
 import os
 import tempfile
+import math
 
 from network import NAF
 from modules import embedding_module_log
@@ -25,8 +26,8 @@ device = 'cuda' if torch.cuda.is_available() else 'cpu'
 print('Loading dataset. It might take a while ...')
 dataset = sound_samples(num_samples=20)
 
-s = 12
-m = 30
+s = 24
+m = 57
 sample = dataset.spectrograms[s,m,:]
 src = dataset.posSrc[s, :]
 mic = dataset.posMic[m, :]
@@ -39,8 +40,8 @@ mic_norm = torch.tensor(mic_norm).to(device).float()
 
 # Spawn embedders and move to GPU
 xyz_embedder = embedding_module_log(num_freqs=7, ch_dim=0, max_freq=7).to(device)
-freq_embedder = embedding_module_log(num_freqs=7, ch_dim=1).to(device)
-time_embedder = embedding_module_log(num_freqs=7, ch_dim=1).to(device)
+freq_embedder = embedding_module_log(num_freqs=7, ch_dim=0).to(device)
+time_embedder = embedding_module_log(num_freqs=7, ch_dim=0).to(device)
 
 # Load NAF with selected configuration
 net = NAF(input_dim = 248, min_xy=dataset.min_pos[:2], max_xy=dataset.max_pos[:2]).to(device)
@@ -48,30 +49,26 @@ state_dict = torch.load(args.config_file)
 net.load_state_dict(state_dict)
 net.eval()
 
+input = torch.zeros((1025,65,120)).to(device)
 
 # Run in inference
 with torch.no_grad():
 
-    src_embed = xyz_embedder(src_norm).unsqueeze(0).unsqueeze(1).repeat(1025, 65, 1)
-    mic_embed = xyz_embedder(mic_norm).unsqueeze(0).unsqueeze(1).repeat(1025, 65, 1)
-    
-    f = torch.arange(1025).unsqueeze(1).to(device)/1024
-    print(f)
-    t = torch.arange(65).unsqueeze(1).to(device)/64
-    print(t)
+    src_embed = xyz_embedder(src_norm)
+    mic_embed = xyz_embedder(mic_norm)
 
-    freq_embed = freq_embedder(f).unsqueeze(1).repeat(1,65,1)
-    print(freq_embed,freq_embed.shape)
-    time_embed = time_embedder(t).unsqueeze(0).repeat(1025,1,1)
-    print(time_embed, time_embed.shape)
+    for f in range(1025):
+        for t in range(65):
+            f_emb = freq_embedder(torch.tensor(f).unsqueeze(0).to(device))
+            t_emb = time_embedder(torch.tensor(t).unsqueeze(0).to(device))
 
-    input = torch.concatenate((src_embed, mic_embed, freq_embed, time_embed), dim=2)
-    input = input.to(device).float()
+            line = torch.cat((src_embed, mic_embed, f_emb, t_emb), dim=0)
+            input[f,t,:] = line
 
     output = net(input, src_norm.unsqueeze(0).unsqueeze(1).repeat(1025,1,3), mic_norm.unsqueeze(0).unsqueeze(1).repeat(1025,1,3))
     output = output.cpu()
-    output = (output * dataset.std_deviation)+dataset.mean_value
-    
+    output.squeeze_(2)    
+
 # Generate and save image to temp directory
 plt.imshow(output, cmap='hot', aspect='auto')
 plt.colorbar()

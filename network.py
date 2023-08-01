@@ -65,43 +65,33 @@ class NAF(nn.Module):
 
         # Initalization of layers via custom moduels
         self.first = intermediate(input_dim, hidden_dim)
-        self.intermediate = intermediate(hidden_dim, hidden_dim)
+        self.layers = torch.nn.ModuleList()
+        for k in range(6):
+            self.layers.append(intermediate(hidden_dim, hidden_dim))
         self.skip = skip(input_dim, hidden_dim)
         self.output = nn.Linear(hidden_dim, output_dim)
-
         
-        #self.proj = projection(input_dim, hidden_dim)
-        #self.residual = nn.Sequential(projection(input_dim, hidden_dim), nn.LeakyReLU(negative_slope=0.1), projection(hidden_dim, output_dim))
-        
-        # Define layers
-        #self.layers = torch.nn.ModuleList()
-        #for i in range(num_layers - 2):
-        #    self.layers.append(sequential(hidden_dim, hidden_dim))
-                
-        self.output = nn.Linear(hidden_dim, output_dim)
-
-        self.blocks = num_layers
     def forward(self, input, srcs, mics):
         SAMPLES = input.shape[1]
         srcs = srcs[..., :2]
         mics = mics[..., :2]
 
-        features_srcs = find_features(srcs, self.grid_coords_xy, self.grid_0).unsqueeze(1).expand(-1, SAMPLES, -1)
-        features_mics = find_features(mics, self.grid_coords_xy, self.grid_0).unsqueeze(1).expand(-1, SAMPLES, -1)
+        features_srcs = find_features(srcs, self.grid_coords_xy, self.grid_0).expand(-1, SAMPLES, -1)
+        features_mics = find_features(mics, self.grid_coords_xy, self.grid_0).expand(-1, SAMPLES, -1)
 
         total_input = torch.cat((features_srcs, features_mics, input), dim=2)
 
         # Passing throught the layers
         out = self.first(total_input)
-        out = self.intermediate(out)
-        out = self.intermediate(out)
-        out = self.intermediate(out)
+        out = self.layers[0](out)
+        out = self.layers[1](out)
+        out = self.layers[2](out)
 
         skip = self.skip(total_input)
         
-        out = self.intermediate(out + skip)
-        out = self.intermediate(out)
-        out = self.intermediate(out)
+        out = self.layers[3](out + skip)
+        out = self.layers[4](out)
+        out = self.layers[5](out)
         out = self.output(out)
 
         return out

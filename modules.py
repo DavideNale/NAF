@@ -26,14 +26,15 @@ class embedding_module_log(nn.Module):
 
 # Pairwise euclidean distance
 def euclidean_distance(x1:torch.Tensor, x2:torch.Tensor) -> torch.Tensor:
-    x1_norm = x1.pow(2).sum(dim=-1, keepdim=True)
-    x2_norm = x2.pow(2).sum(dim=-1, keepdim=True)
-    return torch.addmm(x2_norm.transpose(-2,1), x1, x2.transpose(-2,-1), alpha=-2).add_(x1_norm)
+    x1 = x1.repeat(x2.shape[0],1)
+    x1_p = x1.pow(2).sum(dim=-1, keepdim=True)
+    x2_p = x2.pow(2).sum(dim=-1, keepdim=True)
+    ac = torch.mul(x1[:,0], x2[:,0]).unsqueeze(1)
+    bd = torch.mul(x1[:,1], x2[:,1]).unsqueeze(1)
+    distances = x1_p + x2_p - 2*ac -2*bd
+    index = torch.argmin(distances)
+    return index
 
-#@torch.jit.script
 def find_features(input_pos:torch.Tensor, grid_pos:torch.Tensor, grid:torch.Tensor) -> torch.Tensor:
-    distance = euclidean_distance(input_pos.squeeze(1), grid_pos)
-
-    min_indices = torch.argmin(distance, dim=-1)
-    features = grid[min_indices,:]
-    return features
+    indices = torch.vstack([euclidean_distance(row, grid_pos) for row in input_pos])
+    return grid[indices,:]
