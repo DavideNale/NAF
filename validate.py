@@ -49,62 +49,36 @@ state_dict = torch.load(args.config_file)
 net.load_state_dict(state_dict)
 net.eval()
 
-
-input = torch.zeros((1025,65,120)).to(device)
-
 # Run in inference
 with torch.no_grad():
 
     src_embed = xyz_embedder(src_norm)
     mic_embed = xyz_embedder(mic_norm)
 
-    for f in range(1025):
-        for t in range(65):
-            f_emb = freq_embedder(torch.tensor(f).unsqueeze(0).to(device))
-            t_emb = time_embedder(torch.tensor(t).unsqueeze(0).to(device))
+    f_range = torch.arange(1025).to(device)
+    t_range = torch.arange(65).to(device)
 
-            line = torch.cat((src_embed, mic_embed, f_emb, t_emb), dim=0)
-            input[f,t,:] = line
+    combinations = torch.cartesian_prod(f_range, t_range).to(device)
+    results = []
 
-    output = net(input, src_norm.unsqueeze(0).unsqueeze(1).repeat(1025,1,3), mic_norm.unsqueeze(0).unsqueeze(1).repeat(1025,1,3))
+    for i, (f,t) in enumerate(combinations):
+        f = f.unsqueeze(0)
+        t = t.unsqueeze(0)
+        f_emb = freq_embedder(f)
+        t_emb = time_embedder(t)
+        line = torch.cat((src_embed, mic_embed,f_emb, t_emb), dim=0)
+        results.append(line)
+
+    input = torch.vstack(results)
+    output = net(input.view(1025,-1,120), src_norm.unsqueeze(0).unsqueeze(1).repeat(1025,1,3), mic_norm.unsqueeze(0).unsqueeze(1).repeat(1025,1,3))
     output = output.cpu()
     output.squeeze_(2)
+    print(output.shape)   
 
 criterion = torch.nn.MSELoss()
 print(sample.shape, output.shape)
 loss = criterion(torch.tensor(sample).div_(dataset.max_amplitude), output)
 print(loss)
-
-
-
-    # src_embed = xyz_embedder(src_norm)
-    # mic_embed = xyz_embedder(mic_norm)
-
-    # f_range = torch.arange(1025)
-    # t_range = torch.arange(65)
-
-    # combinations = torch.cartesian_prod(f_range, t_range)
-    # results = []
-
-    # for i, (f,t) in enumerate(combinations):
-    #     f_emb = freq_embedder(torch.tensor(f).unsqueeze(0).to(device))
-    #     t_emb = time_embedder(torch.tensor(t).unsqueeze(0).to(device))
-    #     line = torch.cat((src_embed, mic_embed,f_emb, t_emb), dim=0)
-    #     results.append(line)
-
-    # input = torch.vstack(results)
-
-    # output = net(input, src_norm.unsqueeze(0).unsqueeze(1).repeat(1025,1,3), mic_norm.unsqueeze(0).unsqueeze(1).repeat(1025,1,3))
-    # output = output.cpu()
-    # output.squeeze_(2)
-    # print(output.shape)   
-
-# # Generate and save image to temp directory
-# plt.imshow(output, cmap='hot', aspect='auto')
-# plt.colorbar()
-# plt.xlabel('Time')
-# plt.ylabel('Frequency')
-# plt.title('Spectrogram Heatmap')
 
 # First Image
 plt.subplot(1, 2, 1)

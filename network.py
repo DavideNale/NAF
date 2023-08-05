@@ -28,7 +28,7 @@ class skip(nn.Module):
 
 # Neural Acoustic Field Network
 class NAF(nn.Module):
-    def __init__(self, input_dim, hidden_dim=512, output_dim=1, num_layers=8,
+    def __init__(self, input_dim, hidden_dim=256, output_dim=1, num_layers=8,
         grid_density=0.15, feature_dim=64, min_xy=None, max_xy=None):
         super(NAF, self).__init__()
 

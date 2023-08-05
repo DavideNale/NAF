@@ -14,7 +14,7 @@ device = 'cuda' if torch.cuda.is_available() else 'cpu'
 
 # Trainig parameters
 learning_rate = 0.0005
-decay_rate = 0.05
+decay_rate = 0.01
 num_epochs = 50
 batch_size = 20
 ft_num = 200
@@ -42,6 +42,7 @@ for par_name, par_val in net.named_parameters():
         grid_container.append(par_val)
     else:
         orig_container.append(par_val)
+
 optimizer = torch.optim.AdamW([
     {'params': grid_container, 'lr': learning_rate, 'weight_decay': 1e-2},
     {'params': orig_container, 'lr': learning_rate, 'weight_decay': 0}],
@@ -50,7 +51,7 @@ optimizer = torch.optim.AdamW([
 )
 
 # Create the learning rate scheduler
-# scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode='min', patience=7, factor=0.5, verbose=True)
+scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode='min', patience=7, factor=0.5, verbose=True)
 
 print("Training started ...")
 average_loss=0
@@ -77,7 +78,6 @@ for epoch in range(num_epochs):
 
         # Concatenate and feed to network
         input = torch.cat((src_embed, mic_embed, freq_embed, time_embed), dim=2)
-
         output = net(input, srcs, mics)
         output = torch.squeeze(output, dim=-1)
         loss = criterion(output, gts)
@@ -87,12 +87,12 @@ for epoch in range(num_epochs):
         running_loss += loss.item()
         optimizer.step()
 
-    # Calculating the new learning rate
-    new_lr = learning_rate * (decay_rate ** (epoch + 1 / num_epochs))
-    print(new_lr)
+    # # Calculating the new learning rad e
+    # new_lr = learning_rate * (decay_rate ** (epoch + 1 / num_epochs))
+    # print(new_lr)
 
-    for param_group in optimizer.param_groups:
-        param_group['lr'] = new_lr
+    # for param_group in optimizer.param_groups:
+    #     param_group['lr'] = new_lr
     # Average loss for the epoch
     average_loss = running_loss / len(dataloader)
     print(f"Epoch : {epoch}, loss : {average_loss}") 
