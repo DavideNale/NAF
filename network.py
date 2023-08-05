@@ -3,25 +3,6 @@ import torch.nn as nn
 import numpy as np
 from modules import find_features
 
-# A projection block that maps the input tensor to an output tensor
-# via a linear trasformation with bias: Y=AX+b
-class projection(nn.Module):
-    def __init__(self, input_dim, output_dim):
-        super(projection, self).__init__()
-        self.proj = nn.Linear(input_dim, output_dim, bias=True)
-    def forward(self, x):
-        return self.proj(x)
-
-# A sequential block that combines projection and leakyReLU
-class sequential(nn.Module):
-    def __init__(self, input_dim, output_dim):
-        super(sequential, self).__init__()
-        self.output_dim = output_dim
-        self.block = nn.Sequential(nn.LeakyReLU(negative_slope=0.1), projection(input_dim, output_dim))
-    def forward(self, x):
-        output = self.block(x)
-        return output[...,:self.output_dim]
-
 class intermediate(nn.Module):
     def __init__(self, input_dim, output_dim):
         super(intermediate, self).__init__()
