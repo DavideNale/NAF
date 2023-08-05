@@ -14,8 +14,8 @@ class sound_samples(torch.utils.data.Dataset):
         self.posMic, self.posSrc, _ = irutil.loadIR(path)
 
         # Calculate mean and standard deviation of the dataset
-        self.mean_value = np.mean(self.spectrograms)
-        self.std_deviation = np.std(self.spectrograms)
+        # self.mean_value = np.mean(self.spectrograms)
+        # self.std_deviation = np.std(self.spectrograms)
         self.max_amplitude = np.min(self.spectrograms)
 
         # Calculate min_xy
