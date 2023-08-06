@@ -3,35 +3,31 @@ import torch.nn as nn
 import numpy as np
 from modules import find_features
 
-class intermediate(nn.Module):
-    def __init__(self, input_dim, output_dim):
-        super(intermediate, self).__init__()
-        self.layer = nn.Sequential(
-            nn.Linear(input_dim, output_dim),
-            nn.LeakyReLU(negative_slope=0.1)
-        )
-    def forward(self,x):
-        return self.layer(x)
-
-class skip(nn.Module):
-    def __init__(self, input_dim, output_dim):
-        super(skip, self).__init__()
-        self.layer = nn.Sequential(
-            nn.Linear(input_dim, output_dim),
-            nn.LeakyReLU(negative_slope=0.1),
-            nn.Linear(output_dim, output_dim)
-        )
-    def forward(self, x):
-        return self.layer(x)
-    
-
-
 # Neural Acoustic Field Network
 class NAF(nn.Module):
-    def __init__(self, input_dim, hidden_dim=512, output_dim=1, num_layers=8,
+    def __init__(self, input_dim, hidden_dim=256, output_dim=1,
         grid_density=0.15, feature_dim=64, min_xy=None, max_xy=None):
         super(NAF, self).__init__()
 
+        self.block1 = nn.Sequential(
+            nn.Linear(input_dim, hidden_dim), nn.ReLU(),
+            nn.Linear(hidden_dim, hidden_dim), nn.ReLU(),
+            nn.Linear(hidden_dim, hidden_dim), nn.ReLU(),
+            nn.Linear(hidden_dim, hidden_dim), nn.ReLU(),
+        )
+
+        self.block2 = nn.Sequential(
+            nn.Linear(qualocosa, hidden_dim), nn.ReLU(),
+            nn.Linear(hidden_dim, hidden_dim), nn.ReLU(),
+            nn.Linear(hidden_dim, hidden_dim), nn.ReLU(),
+            nn.Linear(hidden_dim, output_dim), nn.ReLU(),
+        )
+
+        self.skip = nn.Sequential(
+            nn.Linear(input_dim, hidden_dim), nn.ReLU(),
+            nn.Linear(hidden_dim, hidden_dim), nn.ReLU(),
+        )
+        
         # Create grid
         grid_coords_x = np.arange(min_xy[0], max_xy[0], grid_density)
         grid_coords_y = np.arange(min_xy[1], max_xy[1], grid_density)
@@ -51,7 +47,15 @@ class NAF(nn.Module):
             self.layers.append(intermediate(hidden_dim, hidden_dim))
         self.skip = skip(input_dim, hidden_dim)
         self.output = nn.Linear(hidden_dim, output_dim)
-        
+
+    @staticmethod
+    def positional_encoding(x, L):
+        out = [x]
+        for j in range(L):
+            out.append(torch.sin(2 ** j * x))
+            out.append(torch.cos(2 ** j * x))
+        return torch.cat(out, dim=1)
+
     def forward(self, input, srcs, mics):
         SAMPLES = input.shape[1]
         srcs = srcs[..., :2]
@@ -76,4 +80,3 @@ class NAF(nn.Module):
         out = self.output(out)
 
         return out
-        

@@ -33,10 +33,8 @@ src = dataset.posSrc[s, :]
 mic = dataset.posMic[m, :]
 
 # Normalize positions
-src_norm = ((src - dataset.min_pos)/(dataset.max_pos-dataset.min_pos) - 0.5) * 2.0
-mic_norm = ((mic - dataset.min_pos)/(dataset.max_pos-dataset.min_pos) - 0.5) * 2.0
-src_norm = torch.tensor(src_norm).to(device).float()
-mic_norm = torch.tensor(mic_norm).to(device).float()
+src_norm = torch.tensor(src).mul_(math.pi).to(device).float()
+mic_norm = torch.tensor(mic).mul(math.pi).to(device).float()
 
 # Spawn embedders and move to GPU
 xyz_embedder = embedding_module_log(num_freqs=7, ch_dim=0, max_freq=7).to(device)
@@ -50,7 +48,7 @@ net.load_state_dict(state_dict)
 net.eval()
 
 
-input = torch.zeros((1025,65,120)).to(device)
+input = torch.zeros((1025,65)).to(device)
 
 # Run in inference
 with torch.no_grad():
@@ -63,18 +61,7 @@ with torch.no_grad():
             f_emb = freq_embedder(torch.tensor(f).unsqueeze(0).to(device))
             t_emb = time_embedder(torch.tensor(t).unsqueeze(0).to(device))
 
-            line = torch.cat((src_embed, mic_embed, f_emb, t_emb), dim=0)
-            input[f,t,:] = line
-
-    output = net(input, src_norm.unsqueeze(0).unsqueeze(1).repeat(1025,1,3), mic_norm.unsqueeze(0).unsqueeze(1).repeat(1025,1,3))
-    output = output.cpu()
-    output.squeeze_(2)
-
-criterion = torch.nn.MSELoss()
-print(sample.shape, output.shape)
-loss = criterion(torch.tensor(sample).div_(dataset.max_amplitude), output)
-print(loss)
-
+            input[f,t] = net.test(sample[f,t])
 
 
     # src_embed = xyz_embedder(src_norm)
@@ -116,7 +103,7 @@ plt.title('Spectrogram 1')
 
 # Second Image
 plt.subplot(1, 2, 2)
-plt.imshow(output, cmap='hot', aspect='auto')
+plt.imshow(input.cpu(), cmap='hot', aspect='auto')
 plt.colorbar()
 plt.xlabel('Time')
 plt.ylabel('Frequency')

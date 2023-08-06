@@ -25,9 +25,9 @@ dataset = sound_samples(num_samples=ft_num)
 dataloader = DataLoader(dataset, batch_size=batch_size, shuffle=False, num_workers=4, persistent_workers=True)
 
 # Spawn embedders and move to GPU
-xyz_embedder = embedding_module_log(num_freqs=7, ch_dim=2, max_freq=7).to(device)
-freq_embedder = embedding_module_log(num_freqs=7, ch_dim=2).to(device)
-time_embedder = embedding_module_log(num_freqs=7, ch_dim=2).to(device)
+xyz_embedder = embedding_module_log(num_freqs=4, ch_dim=2, max_freq=7).to(device)
+freq_embedder = embedding_module_log(num_freqs=10, ch_dim=2).to(device)
+time_embedder = embedding_module_log(num_freqs=10, ch_dim=2).to(device)
 
 # Spawn network and move to GPU
 net = NAF(input_dim = 248, min_xy=dataset.min_pos[:2], max_xy=dataset.max_pos[:2]).to(device)
@@ -50,7 +50,7 @@ optimizer = torch.optim.AdamW([
 )
 
 # Create the learning rate scheduler
-# scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode='min', patience=7, factor=0.5, verbose=True)
+scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode='min', patience=7, factor=0.5, verbose=True)
 
 print("Training started ...")
 average_loss=0
@@ -63,8 +63,8 @@ for epoch in range(num_epochs):
         # Unpack arrays and move to GPU
         gts = batch[0].to(device, dtype=torch.float32)
         gts = gts / dataset.max_amplitude  # Normalization [0,1]
-        srcs = batch[1].to(device, dtype=torch.float32).unsqueeze(1)
-        mics = batch[2].to(device, dtype=torch.float32).unsqueeze(1)
+        srcs = batch[1].to(device, dtype=torch.float32).unsqueeze(1).mul(math.pi)
+        mics = batch[2].to(device, dtype=torch.float32).unsqueeze(1).mul(math.pi)
         freqs = batch[3].to(device, dtype=torch.float32).unsqueeze(2)
         times = batch[4].to(device, dtype=torch.float32).unsqueeze(2)
 
@@ -88,17 +88,17 @@ for epoch in range(num_epochs):
         optimizer.step()
 
     # Calculating the new learning rate
-    new_lr = learning_rate * (decay_rate ** (epoch + 1 / num_epochs))
-    print(new_lr)
+    # new_lr = learning_rate * (decay_rate ** (epoch + 1 / num_epochs))
+    # print(new_lr)
 
-    for param_group in optimizer.param_groups:
-        param_group['lr'] = new_lr
+    # for param_group in optimizer.param_groups:
+    #     param_group['lr'] = new_lr
     # Average loss for the epoch
     average_loss = running_loss / len(dataloader)
     print(f"Epoch : {epoch}, loss : {average_loss}") 
 
     # Step the learning rate scheduler after each epoch
-    # scheduler.step(average_loss)
+    scheduler.step(average_loss)
     
 # Save the model configuration after training is complete
 print("Saving configuration")
