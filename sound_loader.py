@@ -2,6 +2,7 @@ import torch
 import numpy as np
 from pathlib import Path
 import utils.irutilities as irutil
+import json
 
 class sound_samples(torch.utils.data.Dataset):
     def __init__(self, num_samples):
@@ -13,10 +14,12 @@ class sound_samples(torch.utils.data.Dataset):
         self.spectrograms = np.load(path.joinpath('spectrograms.npy'), mmap_mode='r+')
         self.posMic, self.posSrc, _ = irutil.loadIR(path)
 
-        # Calculate mean and standard deviation of the dataset
-        # self.mean_value = np.mean(self.spectrograms)
-        # self.std_deviation = np.std(self.spectrograms)
-        self.max_amplitude = np.min(self.spectrograms)
+        # Loading data metrics
+        with open(path/'metrics.json', 'r') as json_file:
+            loaded_data = json.load(json_file)
+
+        self.mean = np.float32(loaded_data['mean'])
+        self.std = np.float32(loaded_data['std'])
 
         # Calculate min_xy
         min_x = min(np.min(self.posMic[:,0]), np.min(self.posSrc[:,0]))
