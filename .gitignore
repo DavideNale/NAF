@@ -2,6 +2,9 @@
 dataset/
 raw_data/
 mesh_rir/
+saved/
+
+spectrograms.temp
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

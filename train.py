@@ -13,15 +13,15 @@ from modules import positional_encoding
 device = 'cuda' if torch.cuda.is_available() else 'cpu'
 
 # Trainig parameters
-learning_rate = 0.005
+learning_rate = 0.001
 num_epochs = 200
 batch_size = 20
-ft_num = 200
+ft_num = 1000
 
 # Dataset
 print('Loading dataset. It might take a while ...')
 dataset = sound_samples(num_samples=ft_num)
-dataloader = DataLoader(dataset, batch_size=batch_size, shuffle=False, num_workers=4, persistent_workers=True)
+dataloader = DataLoader(dataset, batch_size=batch_size, shuffle=True, num_workers=4, persistent_workers=True)
 
 # Spawn network and move to GPU
 net = NAF(input_dim = 288, min_xy=dataset.min_pos[:2], max_xy=dataset.max_pos[:2]).to(device)
@@ -45,7 +45,7 @@ optimizer = torch.optim.AdamW([
 
 # Create the learning rate scheduler
 #scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode='min', patience=7, factor=0.5, verbose=True)
-lr_lambda = lambda epoch: 0.95
+lr_lambda = lambda epoch: 0.99
 scheduler = torch.optim.lr_scheduler.MultiplicativeLR(optimizer, lr_lambda)
 
 print("Training started ...")
@@ -57,7 +57,7 @@ for epoch in range(num_epochs):
 
     for batch_index, batch in enumerate(dataloader):
         # Unpack arrays and move to GPU
-        gts = batch[0].to(device, dtype=torch.float32)
+        gts = (batch[0].to(device, dtype=torch.float32) - dataset.mean) / dataset.std
         srcs = batch[1].to(device, dtype=torch.float32)
         mics = batch[2].to(device, dtype=torch.float32)
         freqs = batch[3].to(device, dtype=torch.float32)
@@ -67,14 +67,15 @@ for epoch in range(num_epochs):
         output = net(srcs, mics, freqs, times).squeeze(2)
 
         # Calculate loss
-        loss = criterion(gts, output)
+        # print(torch.max(torch.abs(output)))
+        loss = criterion(gts, -output)
 
         # Perform backward pass
         optimizer.zero_grad()
         loss.backward()
         optimizer.step()
         running_loss += loss.item()
-
+        
     average_loss = running_loss / len(dataloader)
     print(f"Epoch : {epoch}, loss : {average_loss}") 
 
@@ -86,11 +87,3 @@ print("Saving configuration")
 current_date = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
 filename = f'net_{current_date}_loss_{average_loss:.4f}.pth'
 torch.save(net.state_dict(), 'saved/' + filename)
-
-    # Calculating the new learning rate
-    # new_lr = learning_rate * (decay_rate ** (epoch + 1 / num_epochs))
-    # print(new_lr)
-
-    # for param_group in optimizer.param_groups:
-    #     param_group['lr'] = new_lr
-    # Average loss for the epoch

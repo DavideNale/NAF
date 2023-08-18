@@ -20,6 +20,8 @@ class sound_samples(torch.utils.data.Dataset):
 
         self.mean = np.float32(loaded_data['mean'])
         self.std = np.float32(loaded_data['std'])
+        self.min_value = np.float32(loaded_data["min"])
+        self.max_value = np.float32(loaded_data["max"])
 
         # Calculate min_xy
         min_x = min(np.min(self.posMic[:,0]), np.min(self.posSrc[:,0]))
@@ -48,48 +50,23 @@ class sound_samples(torch.utils.data.Dataset):
         src = self.posSrc[s]
         mic = self.posMic[m]
 
-        # Normalization
+        # Normalization -1:1
         src_norm = ((src - self.min_pos)/(self.max_pos-self.min_pos) - 0.5) * 2.0
         mic_norm = ((mic - self.min_pos)/(self.max_pos-self.min_pos) - 0.5) * 2.0
 
         # Sample <num_samples> frequencies and times from the spectrogram
         spectrogram = self.spectrograms[s,m]
         sound_size = spectrogram.shape
-        times = np.random.randint(0, sound_size[1], self.num_samples)
         freqs = np.random.randint(0, sound_size[0], self.num_samples)
+        times = np.random.randint(0, sound_size[1], self.num_samples)
 
-        # Normalization
-        freqs_norm = freqs/sound_size[0]
-        times_norm = times/sound_size[1]
+        # Normalization -1:1
+        freqs_norm = (torch.tensor(freqs, dtype=torch.float32)/sound_size[0] - 0.5) * 2
+        times_norm = (torch.tensor(times, dtype=torch.float32)/sound_size[1] - 0.5) * 2
 
         # Ground truths
         gts = spectrogram[freqs, times]
 
         return gts, src_norm, mic_norm, freqs_norm, times_norm
 
-    def test(self, idx):
-        # Retrieve source and microphone position
-        s, m = self.indices[idx]
-        src = self.posSrc[s]
-        mic = self.posMic[m]
-
-        # Normalization
-        src_norm = ((src - self.min_pos)/(self.max_pos-self.min_pos) - 0.5) * 2.0
-        mic_norm = ((mic - self.min_pos)/(self.max_pos-self.min_pos) - 0.5) * 2.0
-
-        # Sample <num_samples> frequencies and times from the spectrogram
-        spectrogram = self.spectrograms[s,m]
-        sound_size = spectrogram.shape
-        times = np.random.randint(0, sound_size[1], self.num_samples)
-        freqs = np.random.randint(0, sound_size[0], self.num_samples)
-
-        # Normalization
-        times_norm = times/sound_size[1]
-        freqs_norm = freqs/sound_size[0]
-
-        # Ground truths
-        gts = spectrogram[freqs, times]
-
-        return gts, src_norm, mic_norm, freqs_norm, times_norm, spectrogram
-        
-        
+    

@@ -42,6 +42,7 @@ start_time = time.time()
 out = net.spectrogram_at(src, mic)
 exec_time = time.time() - start_time
 print(exec_time)
+out = (out * dataset.std) + dataset.mean
 
 # # Generate and save image to temp directory
 # plt.imshow(output, cmap='hot', aspect='auto')

@@ -3,11 +3,24 @@ import torch.nn as nn
 import numpy as np
 from scipy.spatial import cKDTree
 
-from modules import find_features, positional_encoding
+class positional_encoding(nn.Module):
+    def __init__(self, num_freqs=10, ch_dim=1):
+        super().__init__()
+        self.funcs=[torch.sin, torch.cos]
+        self.num_functions = list(range(len(self.funcs)))
+        self.freqs = (2 ** torch.arange(0, num_freqs)) * torch.pi
+        self.ch_dim = ch_dim
+
+    def forward(self, x_input):
+        out_list = []
+        for func in self.funcs:
+            for freq in self.freqs:
+                out_list.append(func(x_input*freq))
+        return torch.cat(out_list, dim=self.ch_dim)
 
 # Neural Acoustic Field Network
 class NAF(nn.Module):
-    def __init__(self, input_dim, hidden_dim=512, output_dim=1,
+    def __init__(self, input_dim, hidden_dim=256, output_dim=1,
         embedding_dim_pos=7, embedding_dim_spectro=10,
         grid_density=0.15, feature_dim=64, min_xy=None, max_xy=None):
         super(NAF, self).__init__()
@@ -60,6 +73,7 @@ class NAF(nn.Module):
         srcs_xy = srcs[:,:2].cpu()
         mics_xy = mics[:,:2].cpu()
         pos = torch.cat((srcs, mics), dim=1)
+        pos = pos + torch.rand(pos.shape).to('cuda') * 0.05
         pos_enc = self.xyz_encoder(pos).unsqueeze(1).expand(-1, SAMPLES, -1)
 
         freqs = freqs.unsqueeze(2)
@@ -77,11 +91,12 @@ class NAF(nn.Module):
         features_mics = torch.vstack([self.grid_0[indices]]).unsqueeze(1).expand(-1, SAMPLES, -1)
 
         input = torch.cat((features_srcs, features_mics, pos_enc, freqs_enc, times_enc), dim=2)
+        # input = torch.cat((freqs.unsqueeze(2), times.unsqueeze(2)), dim=2).float()
 
         # Passing throught the layers
         out = self.block1(input)
         temp = self.skip(input)
-        out = self.block2(temp+out)
+        out = self.block2(out+temp)
 
         return out
 
@@ -91,11 +106,14 @@ class NAF(nn.Module):
             mic = mic.t().to('cuda').float()
 
             # f,t encoding
-            f_range = torch.arange(1025).to('cuda').unsqueeze(1)
-            t_range = torch.arange(65).to('cuda').unsqueeze(0)
+            f_range = torch.arange(1025).to('cuda').unsqueeze(1)/1025
+            f_range = (f_range - 0.5) * 2
+            t_range = torch.arange(65).to('cuda').unsqueeze(0)/65
+            t_range = (t_range - 0.5) * 2
+
             fs = f_range.expand(-1, 65).flatten().unsqueeze(0)
             ts = t_range.expand(1025, -1).flatten().unsqueeze(0)
 
             out = self.forward(src, mic, fs, ts)
-            out = torch.reshape(out, (1025,65)) 
+            out = -torch.reshape(out, (1025,65)) 
         return out

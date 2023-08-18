@@ -46,8 +46,6 @@ std = np.std(spectrograms)
 min_val = np.min(spectrograms)
 max_val = np.max(spectrograms)
 
-spectrograms = (spectrograms - mean) / std
-
 #min_value = np.min(spectrograms)
 #max_value = np.max(spectrograms)
 data = {
