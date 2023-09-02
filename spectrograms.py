@@ -23,6 +23,13 @@ spectrograms = np.memmap(
     shape = (32,441,1025,65)
 )
 
+phases = np.memmap(
+    'phases.temp', 
+    dtype=np.float32,
+    mode='w+',
+    shape = (32,441,1025,65)
+)
+
 # Remember to flush and close the memory-mapped array when done
 # del mmapped_array
 
@@ -35,7 +42,11 @@ for m in range(posMic.shape[0]):
         spectrogram = np.abs(librosa.stft(sample, n_fft=2048, hop_length=512))
         log_mag_spectrogram = librosa.amplitude_to_db(spectrogram, ref=np.max)
 
+        phase = np.angle(librosa.stft(sample, n_fft=2048, hop_length=512))
+        phase = np.unwrap(phase)
+
         spectrograms[s, m] = log_mag_spectrogram
+        phases[s,m] = phase
 
 
 gc.collect()
@@ -67,5 +78,12 @@ with open(path/'metrics.json', 'w') as json_file:
 save_path = path / 'spectrograms.npy'
 np.save(save_path, spectrograms)
 
+save_path = path / 'phases.npy'
+np.save(save_path, phases)
+
 del spectrograms
+del phases
+
+os.remove('spectrograms.temp')
+os.remove('phases.temp')
 print(f'Spectrograms saved to: {save_path}')

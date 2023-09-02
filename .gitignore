@@ -3,6 +3,8 @@ dataset/
 raw_data/
 mesh_rir/
 saved/
+figures/
+wandb/
 
 spectrograms.temp
 

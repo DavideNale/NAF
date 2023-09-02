@@ -4,6 +4,7 @@ import torch.optim as optim
 import math
 from torch.utils.data import DataLoader
 import datetime
+import wandb
 
 from network import NAF
 from sound_loader import sound_samples
@@ -14,9 +15,24 @@ device = 'cuda' if torch.cuda.is_available() else 'cpu'
 
 # Trainig parameters
 learning_rate = 0.001
-num_epochs = 200
+num_epochs = 300
 batch_size = 20
-ft_num = 1000
+ft_num = 2000
+
+wandb.init(
+    # set the wandb project where this run will be logged
+    project="NAF",
+    
+    # track hyperparameters and run metadata
+    config={
+    "learning_rate": learning_rate,
+    "architecture": "NAF",
+    "dataset": "MeshRIR",
+    "epochs": num_epochs,
+    "batch_size": batch_size,
+    "ft_num": ft_num,
+    }
+)
 
 # Dataset
 print('Loading dataset. It might take a while ...')
@@ -44,12 +60,14 @@ optimizer = torch.optim.AdamW([
 )
 
 # Create the learning rate scheduler
-#scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode='min', patience=7, factor=0.5, verbose=True)
-lr_lambda = lambda epoch: 0.99
-scheduler = torch.optim.lr_scheduler.MultiplicativeLR(optimizer, lr_lambda)
+scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode='min', patience=5, factor=0.5, verbose=True)
+#lr_lambda = lambda epoch: 0.99
+#scheduler = torch.optim.lr_scheduler.MultiplicativeLR(optimizer, lr_lambda)
 
 print("Training started ...")
 average_loss=0
+
+grid_pre = net.get_grid().cpu().sum(dim=1)
 
 # Training loop
 for epoch in range(num_epochs):
@@ -76,12 +94,15 @@ for epoch in range(num_epochs):
         optimizer.step()
         running_loss += loss.item()
         
-    average_loss = running_loss / len(dataloader)
+    average_loss = (running_loss / len(dataloader))/batch_size
     print(f"Epoch : {epoch}, loss : {average_loss}") 
-
+    #wandb.log({"loss": average_loss})
     # Step the learning rate scheduler after each epoch
-    scheduler.step()
-    
+    scheduler.step(average_loss)
+
+grid_post = net.get_grid().cpu().sum(dim=1)
+grid_res = np.where(grid_pre == grid_post, 1, 0)
+
 # Save the model configuration after training is complete
 print("Saving configuration")
 current_date = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")

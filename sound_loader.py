@@ -51,8 +51,8 @@ class sound_samples(torch.utils.data.Dataset):
         mic = self.posMic[m]
 
         # Normalization -1:1
-        src_norm = ((src - self.min_pos)/(self.max_pos-self.min_pos) - 0.5) * 2.0
-        mic_norm = ((mic - self.min_pos)/(self.max_pos-self.min_pos) - 0.5) * 2.0
+        src_norm = ((src - self.min_pos)/(self.max_pos-self.min_pos) - 0.5) * 2.0 + np.random.normal(0,1) * 0.01
+        mic_norm = ((mic - self.min_pos)/(self.max_pos-self.min_pos) - 0.5) * 2.0 + np.random.normal(0,1) * 0.01
 
         # Sample <num_samples> frequencies and times from the spectrogram
         spectrogram = self.spectrograms[s,m]
