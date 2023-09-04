@@ -12,6 +12,7 @@ class sound_samples(torch.utils.data.Dataset):
         # Load dataset and save spectrogram shape
         path = Path('mesh_rir/S32-M441_npy/')
         self.spectrograms = np.load(path.joinpath('spectrograms.npy'), mmap_mode='r+')
+        self.phases = np.load(path.joinpath('phases.npy'), mmap_mode='r+')
         self.posMic, self.posSrc, _ = irutil.loadIR(path)
 
         # Loading data metrics
@@ -56,6 +57,7 @@ class sound_samples(torch.utils.data.Dataset):
 
         # Sample <num_samples> frequencies and times from the spectrogram
         spectrogram = self.spectrograms[s,m]
+        phase = self.phases[s,m]
         sound_size = spectrogram.shape
         freqs = np.random.randint(0, sound_size[0], self.num_samples)
         times = np.random.randint(0, sound_size[1], self.num_samples)
@@ -65,8 +67,9 @@ class sound_samples(torch.utils.data.Dataset):
         times_norm = (torch.tensor(times, dtype=torch.float32)/sound_size[1] - 0.5) * 2
 
         # Ground truths
-        gts = spectrogram[freqs, times]
+        gts_s = spectrogram[freqs, times]
+        gts_p = phase[freqs, times]
 
-        return gts, src_norm, mic_norm, freqs_norm, times_norm
+        return gts_s, gts_p, src_norm, mic_norm, freqs_norm, times_norm
 
     

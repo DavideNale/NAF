@@ -44,15 +44,9 @@ exec_time = time.time() - start_time
 print("generation took: ",exec_time)
 out = (out * dataset.std) + dataset.mean
 
-# # Generate and save image to temp directory
-# plt.imshow(output, cmap='hot', aspect='auto')
-# plt.colorbar()
-# plt.xlabel('Time')
-# plt.ylabel('Frequency')
-# plt.title('Spectrogram Heatmap')
-
+plt.figure(figsize=(8,10))
 # First Image
-plt.subplot(1, 2, 1)
+plt.subplot(2, 2, 1)
 plt.imshow(sample, cmap='hot', aspect='auto')
 plt.colorbar()
 plt.xlabel('Time')
@@ -60,8 +54,16 @@ plt.ylabel('Frequency')
 plt.title('Spectrogram 1')
 
 # Second Image
-plt.subplot(1, 2, 2)
-plt.imshow(out.cpu(), cmap='hot', aspect='auto')
+plt.subplot(2, 2, 2)
+plt.imshow(out.cpu()[:,:,0], cmap='hot', aspect='auto')
+plt.colorbar()
+plt.xlabel('Time')
+plt.ylabel('Frequency')
+plt.title('Spectrogram 2')
+
+# Fourth Image
+plt.subplot(2, 2, 4)
+plt.imshow(out.cpu()[:,:,1], cmap='hot', aspect='auto')
 plt.colorbar()
 plt.xlabel('Time')
 plt.ylabel('Frequency')

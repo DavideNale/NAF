@@ -20,7 +20,7 @@ class positional_encoding(nn.Module):
 
 # Neural Acoustic Field Network
 class NAF(nn.Module):
-    def __init__(self, input_dim, hidden_dim=512, output_dim=1,
+    def __init__(self, input_dim, hidden_dim=512, output_dim=2,
         embedding_dim_pos=7, embedding_dim_spectro=10,
         grid_density=0.15, feature_dim=64, min_xy=None, max_xy=None):
         super(NAF, self).__init__()
@@ -118,5 +118,5 @@ class NAF(nn.Module):
             ts = t_range.expand(1025, -1).flatten().unsqueeze(0)
 
             out = self.forward(src, mic, fs, ts)
-            out = -torch.reshape(out, (1025,65)) 
+            out = -torch.reshape(out, (1025,65,2)) 
         return out

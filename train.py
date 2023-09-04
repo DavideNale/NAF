@@ -15,9 +15,9 @@ device = 'cuda' if torch.cuda.is_available() else 'cpu'
 
 # Trainig parameters
 learning_rate = 0.001
-num_epochs = 300
+num_epochs = 30
 batch_size = 20
-ft_num = 2000
+ft_num = 200
 
 wandb.init(
     # set the wandb project where this run will be logged
@@ -75,17 +75,18 @@ for epoch in range(num_epochs):
 
     for batch_index, batch in enumerate(dataloader):
         # Unpack arrays and move to GPU
-        gts = (batch[0].to(device, dtype=torch.float32) - dataset.mean) / dataset.std
-        srcs = batch[1].to(device, dtype=torch.float32)
-        mics = batch[2].to(device, dtype=torch.float32)
-        freqs = batch[3].to(device, dtype=torch.float32)
-        times = batch[4].to(device, dtype=torch.float32)
+        gts_s = (batch[0].to(device, dtype=torch.float32) - dataset.mean) / dataset.std
+        gts_p = batch[1].to(device, dtype=torch.float32) / 180
+        srcs = batch[2].to(device, dtype=torch.float32)
+        mics = batch[3].to(device, dtype=torch.float32)
+        freqs = batch[4].to(device, dtype=torch.float32)
+        times = batch[5].to(device, dtype=torch.float32)
 
         # Feed to the network
         output = net(srcs, mics, freqs, times).squeeze(2)
 
         # Calculate loss
-        # print(torch.max(torch.abs(output)))
+        gts = torch.cat((gts_s.unsqueeze(2), gts_p.unsqueeze(2)), dim=2)
         loss = criterion(gts, -output)
 
         # Perform backward pass
