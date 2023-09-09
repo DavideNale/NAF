@@ -42,7 +42,7 @@ start_time = time.time()
 out = net.spectrogram_at(src, mic)
 exec_time = time.time() - start_time
 print("generation took: ",exec_time)
-out = (out * dataset.std) + dataset.mean
+out[:,:,0] = (out[:,:,0] * dataset.std) + dataset.mean
 
 plt.figure(figsize=(8,10))
 # First Image

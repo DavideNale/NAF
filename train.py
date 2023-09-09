@@ -15,7 +15,7 @@ device = 'cuda' if torch.cuda.is_available() else 'cpu'
 
 # Trainig parameters
 learning_rate = 0.001
-num_epochs = 30
+num_epochs = 50
 batch_size = 20
 ft_num = 200
 
@@ -68,6 +68,8 @@ print("Training started ...")
 average_loss=0
 
 grid_pre = net.get_grid().cpu().sum(dim=1)
+
+print('Calculating weight scaling bins ...')
 
 # Training loop
 for epoch in range(num_epochs):

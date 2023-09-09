@@ -18,28 +18,55 @@ class positional_encoding(nn.Module):
                 out_list.append(func(x_input*freq))
         return torch.cat(out_list, dim=self.ch_dim)
 
+class SineActivation(nn.Module):
+    def __init__(self, w0=1.0):
+        super(SineActivation, self).__init__()
+        self.w0 = w0
+
+    def forward(self, x):
+        return torch.sin(self.w0 * x)
+
 # Neural Acoustic Field Network
 class NAF(nn.Module):
-    def __init__(self, input_dim, hidden_dim=512, output_dim=2,
-        embedding_dim_pos=7, embedding_dim_spectro=10,
-        grid_density=0.15, feature_dim=64, min_xy=None, max_xy=None):
+    def __init__(self,
+                 input_dim,
+                 hidden_dim=512,
+                 output_dim=2,
+                 embedding_dim_pos=7,
+                 embedding_dim_spectro=10,
+                 grid_density=0.15,
+                 feature_dim=64,
+                 min_xy=None,
+                 max_xy=None):
         super(NAF, self).__init__()
 
         self.block1 = nn.Sequential(
-            nn.Linear(input_dim, hidden_dim), nn.LeakyReLU(negative_slope=0.1),
+            nn.Linear(input_dim , hidden_dim), nn.LeakyReLU(negative_slope=0.1),
             nn.Linear(hidden_dim, hidden_dim), nn.LeakyReLU(negative_slope=0.1),
             nn.Linear(hidden_dim, hidden_dim), nn.LeakyReLU(negative_slope=0.1),
             nn.Linear(hidden_dim, hidden_dim), nn.LeakyReLU(negative_slope=0.1),
         )
-        self.block2 = nn.Sequential(
-            nn.Linear(hidden_dim, hidden_dim), nn.LeakyReLU(negative_slope=0.1),
-            nn.Linear(hidden_dim, hidden_dim), nn.LeakyReLU(negative_slope=0.1),
-            nn.Linear(hidden_dim, hidden_dim), nn.LeakyReLU(negative_slope=0.1),
-            nn.Linear(hidden_dim, output_dim), nn.LeakyReLU(negative_slope=0.1),
+        # self.block2 = nn.Sequential(
+        #     nn.Linear(hidden_dim, hidden_dim), nn.LeakyReLU(negative_slope=0.1),
+        #     nn.Linear(hidden_dim, hidden_dim), nn.LeakyReLU(negative_slope=0.1),
+        #     nn.Linear(hidden_dim, hidden_dim), nn.LeakyReLU(negative_slope=0.1),
+        #     nn.Linear(hidden_dim, output_dim), nn.LeakyReLU(negative_slope=0.1),
+        # )
+        # self.skip = nn.Sequential(
+        #     nn.Linear(input_dim, hidden_dim), nn.LeakyReLU(negative_slope=0.1),
+        #     nn.Linear(hidden_dim, hidden_dim), nn.LeakyReLU(negative_slope=0.1),
+        # )
+        self.tail1 = nn.Sequential(
+            nn.Linear(hidden_dim, 256), nn.LeakyReLU(negative_slope=0.1),
+            nn.Linear(256       , 256), nn.LeakyReLU(negative_slope=0.1),
+            nn.Linear(256       , 256), nn.LeakyReLU(negative_slope=0.1),
+            nn.Linear(256       ,   1), nn.LeakyReLU(negative_slope=0.1),
         )
-        self.skip = nn.Sequential(
-            nn.Linear(input_dim, hidden_dim), nn.LeakyReLU(negative_slope=0.1),
-            nn.Linear(hidden_dim, hidden_dim), nn.LeakyReLU(negative_slope=0.1),
+        self.tail2 = nn.Sequential(
+            nn.Linear(hidden_dim, 256), nn.LeakyReLU(negative_slope=0.1),
+            nn.Linear(256       , 256), nn.LeakyReLU(negative_slope=0.1),
+            nn.Linear(256       , 256), nn.LeakyReLU(negative_slope=0.1),
+            nn.Linear(256       ,   1), nn.LeakyReLU(negative_slope=0.1),
         )
 
         # Positional encoding
@@ -98,8 +125,12 @@ class NAF(nn.Module):
 
         # Passing throught the layers
         out = self.block1(input)
-        temp = self.skip(input)
-        out = self.block2(out+temp)
+        # temp = self.skip(input)
+        # out = out + temp
+        tail1 = self.tail1(out)
+        tail2 = self.tail2(out)
+        # out = self.block2(out+temp)
+        out = torch.cat((tail1,tail2), dim=-1)
 
         return out
 

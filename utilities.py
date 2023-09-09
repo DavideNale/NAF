@@ -5,6 +5,7 @@ import numpy as np
 import os
 import tempfile
 import subprocess
+import librosa
 
 def plot_images(images, nrows, ncols, figsize, cmap='viridis'):
 	num_images = len(images)
@@ -23,3 +24,15 @@ def plot_images(images, nrows, ncols, figsize, cmap='viridis'):
 	plt.savefig(temp_image, bbox_inches='tight')
 	plt.close()
 	subprocess.run("imv "+temp_image, shell=True, check=True, text=True, capture_output=True)
+
+
+def to_audio(spectrogram_db, phase_unwrapped):
+	# Convert spcetrogram from dB to linear
+	spectrogram = librosa.db_to_amplitude(spectrogram_db.numpy())
+	# Compute complex spectrogram
+	complex_spectrogram = spectrogram * np.exp(1j * phase_unwrapped.numpy())
+	# Convert to audio
+	return librosa.istft(complex_spectrogram, hop_length=512)
+
+def compress():
+	return None
