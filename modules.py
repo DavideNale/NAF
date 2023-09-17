@@ -12,6 +12,17 @@ import math
     #         out.append(torch.cos(2 ** j * x))
     #     return torch.cat(out, dim=1)
 
+class WeightedMSELoss(nn.Module):
+    def __init__(self):
+        super(WeightedMSELoss, self).__init__()
+        
+    def forward(self, pred, truth, weights):
+        squared_errors = torch.square(pred - truth)
+        weighted_squared_errors = squared_errors * weights.unsqueeze(1)
+        loss = torch.mean(weighted_squared_errors)
+        return loss
+
+
 class positional_encoding(nn.Module):
     def __init__(self, num_freqs=10, ch_dim=1):
         super().__init__()

@@ -16,18 +16,21 @@ posMic, posSrc, ir = irutil.loadIR(path)
 H = 1025
 W = 65
 
+n_fft = 512
+hop = 512 // 4
+
 spectrograms = np.memmap(
     'spectrograms.temp', 
     dtype=np.float32,
     mode='w+',
-    shape = (32,441,1025,65)
+    shape = (32,441,257,65)
 )
 
 phases = np.memmap(
     'phases.temp', 
     dtype=np.float32,
     mode='w+',
-    shape = (32,441,1025,65)
+    shape = (32,441,257,65)
 )
 
 # Remember to flush and close the memory-mapped array when done
@@ -39,10 +42,11 @@ for m in range(posMic.shape[0]):
     for s in range(posSrc.shape[0]):
         sample = ir[s,m,:]
 
-        spectrogram = np.abs(librosa.stft(sample, n_fft=2048, hop_length=512))
+        tranformed = librosa.stft(sample, n_fft=n_fft, hop_length=512)
+        spectrogram = np.abs(tranformed)
         log_mag_spectrogram = librosa.amplitude_to_db(spectrogram, ref=np.max)
 
-        phase = np.angle(librosa.stft(sample, n_fft=2048, hop_length=512))
+        phase = np.angle(tranformed)
         phase = np.unwrap(phase)
 
         spectrograms[s, m] = log_mag_spectrogram
@@ -74,6 +78,7 @@ print("Array shape: ", spectrograms.shape)
 with open(path/'metrics.json', 'w') as json_file:
     json.dump(data, json_file)
 
+print('Saving and cleaning up ...')
 # Save the spectrograms
 save_path = path / 'spectrograms.npy'
 np.save(save_path, spectrograms)
@@ -86,4 +91,3 @@ del phases
 
 os.remove('spectrograms.temp')
 os.remove('phases.temp')
-print(f'Spectrograms saved to: {save_path}')

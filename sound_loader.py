@@ -3,6 +3,7 @@ import numpy as np
 from pathlib import Path
 import utils.irutilities as irutil
 import json
+import librosa
 
 class sound_samples(torch.utils.data.Dataset):
     def __init__(self, num_samples):
@@ -19,10 +20,13 @@ class sound_samples(torch.utils.data.Dataset):
         with open(path/'metrics.json', 'r') as json_file:
             loaded_data = json.load(json_file)
 
-        self.mean = np.float32(loaded_data['mean'])
-        self.std = np.float32(loaded_data['std'])
-        self.min_value = np.float32(loaded_data["min"])
-        self.max_value = np.float32(loaded_data["max"])
+        # print(np.min(self.spectrograms), np.max(self.spectrograms))
+        # print(np.min(self.phases), np.max(self.phases))
+
+        # self.mean = np.float32(loaded_data['mean'])
+        # self.std = np.float32(loaded_data['std'])
+        # self.min_value = np.float32(loaded_data["min"])
+        # self.max_value = np.float32(loaded_data["max"])
 
         # Calculate min_xy
         min_x = min(np.min(self.posMic[:,0]), np.min(self.posSrc[:,0]))
@@ -52,12 +56,14 @@ class sound_samples(torch.utils.data.Dataset):
         mic = self.posMic[m]
 
         # Normalization -1:1
-        src_norm = ((src - self.min_pos)/(self.max_pos-self.min_pos) - 0.5) * 2.0 + np.random.normal(0,1) * 0.05
-        mic_norm = ((mic - self.min_pos)/(self.max_pos-self.min_pos) - 0.5) * 2.0 + np.random.normal(0,1) * 0.05
+        src_norm = ((src - self.min_pos)/(self.max_pos-self.min_pos) - 0.5) * 2.0 #+ np.random.normal(0,1) * 0.05
+        mic_norm = ((mic - self.min_pos)/(self.max_pos-self.min_pos) - 0.5) * 2.0 #+ np.random.normal(0,1) * 0.05
 
         # Sample <num_samples> frequencies and times from the spectrogram
         spectrogram = self.spectrograms[s,m]
         phase = self.phases[s,m]
+        print(np.min(phase), np.max(phase))       
+
         sound_size = spectrogram.shape
         freqs = np.random.randint(0, sound_size[0], self.num_samples)
         times = np.random.randint(0, sound_size[1], self.num_samples)

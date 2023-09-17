@@ -25,7 +25,6 @@ def plot_images(images, nrows, ncols, figsize, cmap='viridis'):
 	plt.close()
 	subprocess.run("imv "+temp_image, shell=True, check=True, text=True, capture_output=True)
 
-
 def to_audio(spectrogram_db, phase_unwrapped):
 	# Convert spcetrogram from dB to linear
 	spectrogram = librosa.db_to_amplitude(spectrogram_db.numpy())

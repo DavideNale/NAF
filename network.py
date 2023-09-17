@@ -31,17 +31,20 @@ class NAF(nn.Module):
     def __init__(self,
                  input_dim,
                  hidden_dim=512,
+                 tail_spectro_dim=512,
+                 tail_phase_dim=512,
                  output_dim=2,
                  embedding_dim_pos=7,
                  embedding_dim_spectro=10,
                  grid_density=0.15,
-                 feature_dim=64,
+                 feature_dim=128,
                  min_xy=None,
                  max_xy=None):
         super(NAF, self).__init__()
 
         self.block1 = nn.Sequential(
             nn.Linear(input_dim , hidden_dim), nn.LeakyReLU(negative_slope=0.1),
+            nn.Linear(hidden_dim, hidden_dim), nn.LeakyReLU(negative_slope=0.1),
             nn.Linear(hidden_dim, hidden_dim), nn.LeakyReLU(negative_slope=0.1),
             nn.Linear(hidden_dim, hidden_dim), nn.LeakyReLU(negative_slope=0.1),
             nn.Linear(hidden_dim, hidden_dim), nn.LeakyReLU(negative_slope=0.1),
@@ -57,16 +60,18 @@ class NAF(nn.Module):
         #     nn.Linear(hidden_dim, hidden_dim), nn.LeakyReLU(negative_slope=0.1),
         # )
         self.tail1 = nn.Sequential(
-            nn.Linear(hidden_dim, 256), nn.LeakyReLU(negative_slope=0.1),
-            nn.Linear(256       , 256), nn.LeakyReLU(negative_slope=0.1),
-            nn.Linear(256       , 256), nn.LeakyReLU(negative_slope=0.1),
-            nn.Linear(256       ,   1), nn.LeakyReLU(negative_slope=0.1),
+            nn.Linear(hidden_dim, tail_spectro_dim), nn.LeakyReLU(negative_slope=0.1),
+            nn.Linear(hidden_dim, tail_spectro_dim), nn.LeakyReLU(negative_slope=0.1),
+            nn.Linear(tail_spectro_dim, tail_spectro_dim), nn.LeakyReLU(negative_slope=0.1),
+            nn.Linear(tail_spectro_dim, tail_spectro_dim), nn.LeakyReLU(negative_slope=0.1),
+            nn.Linear(tail_spectro_dim, 1), #nn.LeakyReLU(negative_slope=0.1),
         )
         self.tail2 = nn.Sequential(
-            nn.Linear(hidden_dim, 256), nn.LeakyReLU(negative_slope=0.1),
-            nn.Linear(256       , 256), nn.LeakyReLU(negative_slope=0.1),
-            nn.Linear(256       , 256), nn.LeakyReLU(negative_slope=0.1),
-            nn.Linear(256       ,   1), nn.LeakyReLU(negative_slope=0.1),
+            nn.Linear(hidden_dim, tail_phase_dim), nn.LeakyReLU(negative_slope=0.1),
+            nn.Linear(hidden_dim, tail_phase_dim), nn.LeakyReLU(negative_slope=0.1),
+            nn.Linear(tail_phase_dim, tail_phase_dim), nn.LeakyReLU(negative_slope=0.1),
+            nn.Linear(tail_phase_dim, tail_phase_dim), nn.LeakyReLU(negative_slope=0.1),
+            nn.Linear(tail_phase_dim, 1), #nn.LeakyReLU(negative_slope=0.1),
         )
 
         # Positional encoding
