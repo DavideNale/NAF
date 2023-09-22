@@ -2,6 +2,7 @@ import torch
 import torch.nn as nn
 import numpy as np
 from scipy.spatial import cKDTree
+import librosa
 
 class positional_encoding(nn.Module):
     def __init__(self, num_freqs=10, ch_dim=1):
@@ -18,8 +19,8 @@ class positional_encoding(nn.Module):
                 out_list.append(func(x_input*freq))
         return torch.cat(out_list, dim=self.ch_dim)
 
-class SineActivation(nn.Module):
-    def __init__(self, w0=1.0):
+class SineLayer(nn.Module):
+    def __init__(self, w0):
         super(SineActivation, self).__init__()
         self.w0 = w0
 
@@ -30,14 +31,14 @@ class SineActivation(nn.Module):
 class NAF(nn.Module):
     def __init__(self,
                  input_dim,
-                 hidden_dim=512,
-                 tail_spectro_dim=512,
-                 tail_phase_dim=512,
+                 hidden_dim=256,
+                 tail_spectro_dim=256,
+                 tail_phase_dim=256,
                  output_dim=2,
                  embedding_dim_pos=7,
                  embedding_dim_spectro=10,
-                 grid_density=0.15,
-                 feature_dim=128,
+                 grid_density=0.10,
+                 feature_dim=64,
                  min_xy=None,
                  max_xy=None):
         super(NAF, self).__init__()
@@ -47,9 +48,9 @@ class NAF(nn.Module):
             nn.Linear(hidden_dim, hidden_dim), nn.LeakyReLU(negative_slope=0.1),
             nn.Linear(hidden_dim, hidden_dim), nn.LeakyReLU(negative_slope=0.1),
             nn.Linear(hidden_dim, hidden_dim), nn.LeakyReLU(negative_slope=0.1),
-            nn.Linear(hidden_dim, hidden_dim), nn.LeakyReLU(negative_slope=0.1),
         )
-        # self.block2 = nn.Sequential(
+
+                # self.block2 = nn.Sequential(
         #     nn.Linear(hidden_dim, hidden_dim), nn.LeakyReLU(negative_slope=0.1),
         #     nn.Linear(hidden_dim, hidden_dim), nn.LeakyReLU(negative_slope=0.1),
         #     nn.Linear(hidden_dim, hidden_dim), nn.LeakyReLU(negative_slope=0.1),
@@ -61,17 +62,15 @@ class NAF(nn.Module):
         # )
         self.tail1 = nn.Sequential(
             nn.Linear(hidden_dim, tail_spectro_dim), nn.LeakyReLU(negative_slope=0.1),
-            nn.Linear(hidden_dim, tail_spectro_dim), nn.LeakyReLU(negative_slope=0.1),
-            nn.Linear(tail_spectro_dim, tail_spectro_dim), nn.LeakyReLU(negative_slope=0.1),
+            nn.Linear(tail_spectro_dim, tail_spectro_dim),nn.LeakyReLU(negative_slope=0.1),
             nn.Linear(tail_spectro_dim, tail_spectro_dim), nn.LeakyReLU(negative_slope=0.1),
             nn.Linear(tail_spectro_dim, 1), #nn.LeakyReLU(negative_slope=0.1),
         )
         self.tail2 = nn.Sequential(
             nn.Linear(hidden_dim, tail_phase_dim), nn.LeakyReLU(negative_slope=0.1),
-            nn.Linear(hidden_dim, tail_phase_dim), nn.LeakyReLU(negative_slope=0.1),
             nn.Linear(tail_phase_dim, tail_phase_dim), nn.LeakyReLU(negative_slope=0.1),
             nn.Linear(tail_phase_dim, tail_phase_dim), nn.LeakyReLU(negative_slope=0.1),
-            nn.Linear(tail_phase_dim, 1), #nn.LeakyReLU(negative_slope=0.1),
+            nn.Linear(tail_phase_dim, 1),
         )
 
         # Positional encoding
@@ -85,6 +84,7 @@ class NAF(nn.Module):
         grid_coords_x = grid_coords_x.flatten()
         grid_coords_y = grid_coords_y.flatten()
         xy_train = np.array([grid_coords_x, grid_coords_y]).T
+        print(grid_coords_x.shape)
 
         self.kdtree = cKDTree(xy_train)
 
@@ -145,14 +145,46 @@ class NAF(nn.Module):
             mic = mic.t().to('cuda').float()
 
             # f,t encoding
-            f_range = torch.arange(1025).to('cuda').unsqueeze(1)/1025
+            f_range = torch.arange(257).to('cuda').unsqueeze(1)/257
             f_range = (f_range - 0.5) * 2
-            t_range = torch.arange(65).to('cuda').unsqueeze(0)/65
+            t_range = torch.arange(257).to('cuda').unsqueeze(0)/257
             t_range = (t_range - 0.5) * 2
 
-            fs = f_range.expand(-1, 65).flatten().unsqueeze(0)
-            ts = t_range.expand(1025, -1).flatten().unsqueeze(0)
+            fs = f_range.expand(-1, 257).flatten().unsqueeze(0)
+            ts = t_range.expand(257, -1).flatten().unsqueeze(0)
 
             out = self.forward(src, mic, fs, ts)
-            out = -torch.reshape(out, (1025,65,2)) 
+            out = -torch.reshape(out, (257,257,2)) 
         return out
+
+    def loudness_map(self, src, resolution):
+        src = torch.tensor(src).unsqueeze(1).to('cuda')
+
+        x_values = torch.linspace(-1, 1, resolution)
+        y_values = torch.linspace(-1, 1, resolution)
+        xx, yy = torch.meshgrid(x_values, y_values, indexing="ij")
+        grid_points = torch.vstack((xx.ravel(), yy.ravel())).t()
+
+        ones = torch.ones((grid_points.shape[0],1))
+        grid_points = torch.hstack((grid_points,ones))
+
+        print(src,src.shape)
+        print(grid_points,grid_points.shape)
+        result = np.zeros(grid_points.shape[0])
+
+
+        for i, point in enumerate(grid_points):
+            mic = torch.tensor(point).unsqueeze(1).to('cuda')
+            out = self.spectrogram_at(src, mic)
+            
+            out_s = ((out[:,:,0]*40) - 40)
+            out_p = out[:,:,1] * np.pi * 180
+
+            out_s = librosa.db_to_amplitude(out_s.cpu()) * 135
+
+            audio = librosa.istft(out_s.numpy() * np.exp(1j * out_p.cpu().numpy()), hop_length=512//4)
+            peak = np.max(audio)
+            result[i] = peak
+            
+        result = result.reshape(resolution,resolution)
+        return result

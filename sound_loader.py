@@ -16,6 +16,12 @@ class sound_samples(torch.utils.data.Dataset):
         self.phases = np.load(path.joinpath('phases.npy'), mmap_mode='r+')
         self.posMic, self.posSrc, _ = irutil.loadIR(path)
 
+        sorted_mics_indices =  np.lexsort((self.posMic[:, 1], self.posMic[:, 0]))
+        self.posMic = self.posMic[sorted_mics_indices]
+
+        sorted_srcs_indices = [7,5,3,1,6,4,2,0,9,13,15,21,11,15,19,23,24,26,28,30,25,27,29,31,22,18,14,10,20,16,12,8]
+        self.posSrc = self.posSrc[sorted_srcs_indices]
+
         # Loading data metrics
         with open(path/'metrics.json', 'r') as json_file:
             loaded_data = json.load(json_file)
@@ -62,7 +68,8 @@ class sound_samples(torch.utils.data.Dataset):
         # Sample <num_samples> frequencies and times from the spectrogram
         spectrogram = self.spectrograms[s,m]
         phase = self.phases[s,m]
-        print(np.min(phase), np.max(phase))       
+        # phase = np.diff(phase, n=1, axis=0) / (np.pi * 180)
+        # phase = np.vstack((phase, phase[-1].reshape(1,-1)))
 
         sound_size = spectrogram.shape
         freqs = np.random.randint(0, sound_size[0], self.num_samples)

@@ -40,7 +40,7 @@ dataset = sound_samples(num_samples=ft_num)
 dataloader = DataLoader(dataset, batch_size=batch_size, shuffle=True, num_workers=4, persistent_workers=True)
 
 # Spawn network and move to GPU
-net = NAF(input_dim = 416, min_xy=dataset.min_pos[:2], max_xy=dataset.max_pos[:2]).to(device)
+net = NAF(input_dim = 288, min_xy=dataset.min_pos[:2], max_xy=dataset.max_pos[:2]).to(device)
 criterion = torch.nn.MSELoss()#WeightedMSELoss()#torch.nn.MSELoss()
 
 # Create pools for optimization
@@ -89,7 +89,7 @@ for epoch in range(num_epochs):
     for batch_index, batch in enumerate(dataloader):
         # Unpack arrays and move to GPU
         gts_s = (batch[0].to(device, dtype=torch.float32) + 40) / 40
-        gts_p = batch[1].to(device, dtype=torch.float32)
+        gts_p = batch[1].to(device, dtype=torch.float32) / (np.pi * 180)
         #gts_p = torch.sin(0.5 * math.pi * gts_p)
         #gts_p = torch.tanh(gts_p * 3)
         gts = torch.cat((gts_s.unsqueeze(2), gts_p.unsqueeze(2)), dim=2)
@@ -139,6 +139,8 @@ for epoch in range(num_epochs):
 
 grid_post = net.get_grid().cpu().sum(dim=1)
 grid_res = np.where(grid_pre == grid_post, 1, 0)
+
+print(grid_res)
 
 # Save the model configuration after training is complete
 print("Saving configuration")

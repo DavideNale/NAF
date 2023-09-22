@@ -13,6 +13,11 @@ path = Path('mesh_rir/S32-M441_npy/')
 print('Loading IRs ...')
 posMic, posSrc, ir = irutil.loadIR(path)
 
+# Sort ir by mic position
+sorted_mics_indices =  np.lexsort((posMic[:, 1], posMic[:, 0]))
+posMic = posMic[sorted_mics_indices]
+ir = ir[:,sorted_mics_indices,:]
+
 H = 1025
 W = 65
 
@@ -23,14 +28,14 @@ spectrograms = np.memmap(
     'spectrograms.temp', 
     dtype=np.float32,
     mode='w+',
-    shape = (32,441,257,65)
+    shape = (32,441,257,257)
 )
 
 phases = np.memmap(
     'phases.temp', 
     dtype=np.float32,
     mode='w+',
-    shape = (32,441,257,65)
+    shape = (32,441,257,257)
 )
 
 # Remember to flush and close the memory-mapped array when done
@@ -42,7 +47,7 @@ for m in range(posMic.shape[0]):
     for s in range(posSrc.shape[0]):
         sample = ir[s,m,:]
 
-        tranformed = librosa.stft(sample, n_fft=n_fft, hop_length=512)
+        tranformed = librosa.stft(sample, n_fft=n_fft, hop_length=hop)
         spectrogram = np.abs(tranformed)
         log_mag_spectrogram = librosa.amplitude_to_db(spectrogram, ref=np.max)
 
