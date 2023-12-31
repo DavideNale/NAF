@@ -28,7 +28,7 @@ def loadIR(sessionPath):
     allIR = []
     irIndices = []
     with Progress() as progress:
-        task = progress.add_task("[cyan]Indexing", total=len(list(sessionPath.iterdir())))
+        task = progress.add_task("Indexing", total=len(list(sessionPath.iterdir())))
         for f in sessionPath.iterdir():
             if not f.is_dir():
                 if f.stem.startswith("ir_"):
@@ -42,7 +42,7 @@ def loadIR(sessionPath):
     fullIR = np.zeros((numSrc, numMic, irLen))
     
     with Progress() as progress:
-        task = progress.add_task("[cyan]Loading", total=len(allIR))
+        task = progress.add_task("Loading", total=len(allIR))
         for i, ir in enumerate(allIR):
             assert ir.shape[0] == numSrc
             assert ir.shape[-1] == irLen

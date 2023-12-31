@@ -14,13 +14,13 @@ class PositionalEncoding(nn.Module):
         self.ch_dim = ch_dim
 
     def forward(self, x_input):
-        out_list = [func(x_input * self.freqs.view(-1, 1)) for func in self.funcs]
+        # out_list = [func(x_input * self.freqs.view(-1, 1)) for func in self.funcs]
+        # return torch.cat(out_list, dim=self.ch_dim)
+        out_list = []
+        for func in self.funcs:
+            for freq in self.freqs:
+                out_list.append(func(x_input * freq))
         return torch.cat(out_list, dim=self.ch_dim)
-#         out_list = []
-#         for func in self.funcs:
-#             for freq in self.freqs:
-#                 out_list.append(func(x_input * freq))
-#         return torch.cat(out_list, dim=self.ch_dim)
 
 
 class NAF(nn.Module):

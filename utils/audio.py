@@ -4,12 +4,9 @@ import numpy as np
 
 # Extracts amplitude (dB) and phase (unwrapped) from an audio sample
 def from_audio(sample: np.ndarray, n_fft: int, hop: int) -> (np.ndarray, np.ndarray):
-    # Complex spectrogram
     complex = librosa.stft(sample, n_fft=n_fft, hop_length=hop)
-    # Spectrogram
     spectrogram = np.abs(complex)
     spectrogram_db = librosa.amplitude_to_db(spectrogram)
-    # Phase
     phase = np.angle(complex)
     phase_unwrapped = np.unwrap(phase)
     return spectrogram_db, phase_unwrapped
