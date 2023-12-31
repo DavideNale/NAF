@@ -71,6 +71,7 @@ scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode='min', pa
 # Trackers
 average_loss=0
 print("Trainig started ...")
+
 # Training loop
 for epoch in range(epochs):
     running_loss = 0.0
@@ -105,49 +106,47 @@ for epoch in range(epochs):
 
     with torch.no_grad():
         for batch in val_loader:
-            output = 0
-            val_error += 0
+            gts_s = batch[0].to(device,  dtype=torch.float32)
+            gts_p = batch[1].to(device, dtype=torch.float32)
+            srcs = batch[2].to(device, dtype=torch.float32)
+            mics = batch[3].to(device, dtype=torch.float32)
+            freqs = batch[4].to(device, dtype=torch.float32)
+            times = batch[5].to(device, dtype=torch.float32)
+
+            output = net(srcs, mics, freqs, times)
+            s_loss = criterion(gts_s, output[:,:,0])
+            p_loss = criterion(gts_p, output[:,:,1])
+            a = 0.5
+            val_error += (a*s_loss)+(1-a)*p_loss
 
     average_loss = (running_loss / len(train_loader))/batch_size
+    val_error = (val_error / len(val_loader))/batch_size
     scheduler.step(average_loss)
 
     print(f"  → Training error: {average_loss}")
-    print(f"  → Validation error: {0}")
+    print(f"  → Validation error: {val_error}")
 
+# Test loop
+net.eval()
+test_error = 0
+for batch in test_loader:
+    gts_s = batch[0].to(device,  dtype=torch.float32)
+    gts_p = batch[1].to(device, dtype=torch.float32)
+    srcs = batch[2].to(device, dtype=torch.float32)
+    mics = batch[3].to(device, dtype=torch.float32)
+    freqs = batch[4].to(device, dtype=torch.float32)
+    times = batch[5].to(device, dtype=torch.float32)
+    output = net(srcs, mics, freqs, times)
+    s_loss = criterion(gts_s, output[:,:,0])
+    p_loss = criterion(gts_p, output[:,:,1])
+    a = 0.5
+    test_error += (a*s_loss)+(1-a)*p_loss
 
-# # Test loop
-# net.eval()
-# correct = 0
-# total = 0
+test_error = (test_error / len(test_loader))/batch_size
+print(f"  → Test error: {test_error}")
 
-# with torch.no_grad():
-#     for inputs, labels in test_loader:
-#         outputs = model(inputs)
-#         _, predicted = torch.max(outputs.data, 1)
-#         total += labels.size(0)
-#         correct += (predicted == labels).sum().item()
-
-# test_accuracy = correct / total
-# print(f'Test Accuracy: {test_accuracy * 100:.2f}%')
-
-
-#     for i in range(k):
-#         random_index = np.random.randint(0,dataset.__len__())
-#         positions = dataset.indices[random_index]
-#         temp_src = dataset.posSrc[positions[0]]
-#         temp_mic = dataset.posMic[positions[1]]
-
-#         original = dataset.irs[positions[0],positions[1],:]
-#         with torch.no_grad():
-#             temp_src = torch.tensor(dataset.posSrc[positions[0]]).unsqueeze(1).to(device)
-#             temp_mic = torch.tensor(dataset.posMic[positions[1]]).unsqueeze(1).to(device)
-#             inferred = net.audio_at(temp_src, temp_mic)
-#             temp_out = net.spectrogram_at(temp_src, temp_mic).cpu().numpy()
-#             temp_spec, _ = from_audio(original)
-
-# # Save the model configuration after training is complete
-# print("Saving configuration")
-# current_date = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
-# filename = f'net_{current_date}_loss_{average_loss:.7f}.pth'
-# torch.save(net.state_dict(), 'saved/' + filename)
-    
+# Save the model configuration after training is complete
+current_date = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+filename = f'model_{current_date}_{average_loss:.7f}.pth'
+print(f"Saving configuration as {filename}")
+torch.save(net.state_dict(), 'saved/' + filename)
