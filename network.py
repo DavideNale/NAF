@@ -1,7 +1,9 @@
+import pdb
 import torch
 import librosa
 import numpy as np
 import torch.nn as nn
+import torch.nn.functional as F
 from scipy.spatial import cKDTree
 
 
@@ -79,12 +81,22 @@ class NAF(nn.Module):
     def get_grid(self):
         return self.grid_0.clone()
 
+    def _interpolated(self, coords: torch.Tensor, samples: int) -> torch.Tensor:
+        distances, indices = self.kdtree.query(coords, k=4)
+        distances = torch.Tensor(distances).to("cuda")
+        distances_n = F.softmax(distances, dim=1)
+        features = torch.zeros((coords.shape[0],self.grid_0.shape[1])).to("cuda")
+        for i in range(4):
+            feats = torch.vstack([self.grid_0[indices[:,i]]])
+            d = distances_n[:,i].unsqueeze(1).repeat(1,feats.shape[1])
+            features += feats * d
+        return features.unsqueeze(1).expand(-1,samples,-1)
+
     def forward(self, srcs, mics, freqs, times):
         SAMPLES = freqs.shape[1]
         srcs_xy = srcs[:, :2].cpu()
         mics_xy = mics[:, :2].cpu()
         pos = torch.cat((srcs, mics), dim=1)
-        pos = pos + torch.rand(pos.shape).to("cuda") * 0.05
         pos_enc = self.xyz_encoder(pos).unsqueeze(1).expand(-1, SAMPLES, -1)
 
         freqs = freqs.unsqueeze(2)
@@ -92,28 +104,15 @@ class NAF(nn.Module):
         freqs_enc = self.ft_encoder(freqs)
         times_enc = self.ft_encoder(times)
 
-        # # Exctract srcs features from the grid
-        distances, indices = self.kdtree.query(srcs_xy, k=1)
-        features_srcs = (
-            torch.vstack([self.grid_0[indices]]).unsqueeze(1).expand(-1, SAMPLES, -1)
-        )
-
-        # # Exctract mics features from the grid
-        distances, indices = self.kdtree.query(mics_xy, k=1)
-        features_mics = (
-            torch.vstack([self.grid_0[indices]]).unsqueeze(1).expand(-1, SAMPLES, -1)
-        )
+        features_srcs = self._interpolated(srcs_xy, SAMPLES)
+        features_mics = self._interpolated(mics_xy, SAMPLES)
         input = torch.cat(
             (features_srcs, features_mics, pos_enc, freqs_enc, times_enc), dim=2
         )
 
-        # Passing throught the layers
         out = self.block1(input)
-        # temp = self.skip(input)
-        # out = out + temp
         tail1 = self.tail1(out)
         tail2 = self.tail2(out)
-        # out = self.block2(out+temp)
         out = torch.cat((tail1, tail2), dim=-1)
 
         return out

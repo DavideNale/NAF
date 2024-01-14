@@ -1,3 +1,4 @@
+import gc
 import math
 import torch
 import wandb
@@ -25,7 +26,6 @@ batch_size = params['training']['batch']
 ft = params['training']['ft']
 
 
-# Load dataset and create dataloader
 print("Loading dataset ...")
 dataset = MeshrirDataset(ft, Path('data/mesh_rir/S32-M441_npy/'), 0.0)
 # dataloader = DataLoader(dataset, batch_size=batch_size, shuffle=True, num_workers=4, persistent_workers=True)
@@ -39,9 +39,9 @@ train_size = total_size - val_size - test_size
 
 train_dataset, val_dataset, test_dataset = random_split(dataset, [train_size, val_size, test_size])
 
-train_loader = DataLoader(dataset=train_dataset, batch_size=batch_size, shuffle=True, num_workers=4)
-val_loader = DataLoader(dataset=val_dataset, batch_size=batch_size, shuffle=False, num_workers=4)
-test_loader = DataLoader(dataset=test_dataset, batch_size=batch_size, shuffle=False, num_workers=4)
+train_loader = DataLoader(dataset=train_dataset, batch_size=batch_size, shuffle=True, num_workers=4, persistent_workers=True)
+val_loader = DataLoader(dataset=val_dataset, batch_size=batch_size, shuffle=False, num_workers=4, persistent_workers=True)
+test_loader = DataLoader(dataset=test_dataset, batch_size=batch_size, shuffle=False, num_workers=4, persistent_workers=True)
 
 # Spawn network and move to GPU
 net = NAF(input_dim = 288, min_xy=dataset.min_pos[:2], max_xy=dataset.max_pos[:2]).to(device)
@@ -126,24 +126,30 @@ for epoch in range(epochs):
     print(f"  → Training error: {average_loss}")
     print(f"  → Validation error: {val_error}")
 
-# Test loop
-net.eval()
-test_error = 0
-for batch in test_loader:
-    gts_s = batch[0].to(device,  dtype=torch.float32)
-    gts_p = batch[1].to(device, dtype=torch.float32)
-    srcs = batch[2].to(device, dtype=torch.float32)
-    mics = batch[3].to(device, dtype=torch.float32)
-    freqs = batch[4].to(device, dtype=torch.float32)
-    times = batch[5].to(device, dtype=torch.float32)
-    output = net(srcs, mics, freqs, times)
-    s_loss = criterion(gts_s, output[:,:,0])
-    p_loss = criterion(gts_p, output[:,:,1])
-    a = 0.5
-    test_error += (a*s_loss)+(1-a)*p_loss
+del train_dataset, train_loader
+del val_dataset, val_loader
+torch.cuda.empty_cache()
+gc.collect()
 
-test_error = (test_error / len(test_loader))/batch_size
-print(f"  → Test error: {test_error}")
+
+# # Test loop
+# net.eval()
+# test_error = 0
+# for batch in test_loader:
+#     gts_s = batch[0].to(device,  dtype=torch.float32)
+#     gts_p = batch[1].to(device, dtype=torch.float32)
+#     srcs = batch[2].to(device, dtype=torch.float32)
+#     mics = batch[3].to(device, dtype=torch.float32)
+#     freqs = batch[4].to(device, dtype=torch.float32)
+#     times = batch[5].to(device, dtype=torch.float32)
+#     output = net(srcs, mics, freqs, times)
+#     s_loss = criterion(gts_s, output[:,:,0])
+#     p_loss = criterion(gts_p, output[:,:,1])
+#     a = 0.5
+#     test_error += (a*s_loss)+(1-a)*p_loss
+
+# test_error = (test_error / len(test_loader))/batch_size
+# print(f"  → Test error: {test_error}")
 
 # Save the model configuration after training is complete
 current_date = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
